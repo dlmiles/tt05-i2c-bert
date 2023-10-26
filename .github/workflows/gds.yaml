@@ -13,6 +13,23 @@ jobs:
         with:
           submodules: recursive
 
+      - name: patch
+        run: |
+          cd src
+
+          ./check_verilog_production.sh || true
+
+          echo "### Temporary patch remove before production and signoff"
+          echo "### For local simulation these top level signal are used for testing the I2C bus"
+          echo "### This patch removes the signals so the verilog is ready for production use"
+
+          ./check_verilog_production.sh patch quiet
+
+          echo ""
+          echo "### This now validates the values inside verilog are production system values or halts the CI"
+
+          ./check_verilog_production.sh
+
       - name: Build GDS
         uses: TinyTapeout/tt-gds-action@tt05
 
@@ -24,3 +41,35 @@ jobs:
       id-token: write   # to verify the deployment originates from an appropriate source
     steps:
       - uses: TinyTapeout/tt-gds-action/viewer@tt05
+
+
+  gl_test:
+    needs: gds
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: GL test
+        #uses: TinyTapeout/tt-gds-action/gl_test@tt05
+        uses: dlmiles/tt-gds-action/gl_test@tt05
+        with:
+          RANDOM_POLICY:	random
+
+
+  eqy_test:
+    needs: gds
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: eqy test
+        #uses: TinyTapeout/tt-gds-action/eqy_test@tt05
+        uses: dlmiles/tt-gds-action/eqy_test@tt05
+
+

@@ -1,0 +1,173 @@
+name: coverage
+# either manually started, or on a schedule
+on: [ push, workflow_dispatch ]
+
+env:
+  SIM:		verilator
+  COVERAGE:	yes
+
+jobs:
+  coverage:
+    # ubuntu
+    runs-on: ubuntu-latest
+    steps:
+    # need the repo checked out
+    - name: checkout repo
+      uses: actions/checkout@v3
+
+    # install oss fpga tools
+    - name: install oss-cad-suite
+      uses: YosysHQ/setup-oss-cad-suite@v2
+      with:
+          python-override: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: prepare oss-cad-suite
+      run: |
+        [ -e /yosyshq ] || sudo ln -s $RUNNER_TEMP/oss-cad-suite /yosyshq || true
+
+        if [ ! -e /yosyshq ]; then
+          echo "WARNING: Unable to ensure setup of symlink /yosyshq, some things may not work as well as expected.  ln -s  $RUNNER_TEMP/oss-cad-suite /yosyshq" 1>&2
+        fi
+
+        echo "OSS_CAD_SUITE_HOME=$OSS_CAD_SUITE_HOME"
+        test -n "$OSS_CAD_SUITE_HOME" || export OSS_CAD_SUITE_HOME="$RUNNER_TEMP/oss-cad-suite"
+        echo "OSS_CAD_SUITE_HOME=$OSS_CAD_SUITE_HOME"
+        echo "OSS_CAD_SUITE_HOME=$OSS_CAD_SUITE_HOME" >> $GITHUB_ENV
+
+        if [ ! -e "$OSS_CAD_SUITE_HOME" ]; then
+          echo "WARNING: \$OSS_CAD_SUITE_HOME not setup" 1>&2
+        fi
+
+        # Into system
+        sudo -E apt-get install -y libffi7
+
+        # Into oss-cad-suite
+        source "$OSS_CAD_SUITE_HOME/environment"
+        sudo -E python3 -m pip install coverage
+
+        yosys --version
+        iverilog -V
+        cocotb-config --libpython
+        cocotb-config --python-bin
+        verilator --version
+
+    - name: setup verilator
+      run: |
+        # Needs working native C toolchain and coverage report tools
+        sudo -E apt-get install -y build-essential lcov
+
+        # Just to show how out-of-date these packages maybe
+        #apt-cache show verilator || true
+        # Probably does not exist
+        #apt-cache show cocotb || true
+
+    - name: patch
+      run: |
+        cd src
+
+        ./check_verilog_production.sh || true
+
+        echo "### Temporary patch remove before production and signoff"
+        echo "### For local simulation these top level signal are used for testing the I2C bus"
+        echo "### This patch removes the signals so the verilog is ready for production use"
+
+        ./check_verilog_production.sh patch quiet
+
+        echo ""
+        echo "### This now validates the values inside verilog are production system values or halts the CI"
+
+        ./check_verilog_production.sh
+
+    - name: coverage zero
+      run: |
+        source "$OSS_CAD_SUITE_HOME/environment"
+        cd src
+
+        export RANDOM_POLICY=zero
+        export DEBUG=true
+
+        make clean
+        rm -f results.xml
+
+        make
+        test -f results.xml
+
+        mv results.xml results_zero.xml
+        mv coverage.dat coverage_zero.dat
+        mv tb.vcd tb_zero.vcd
+
+        # make will return success even if the test fails, so check for failure in the results.xml
+        ! grep failure results_zero.xml
+
+    - name: coverage one
+      run: |
+        source "$OSS_CAD_SUITE_HOME/environment"
+        cd src
+
+        export RANDOM_POLICY=one
+        export DEBUG=true
+
+        make clean
+        rm -f results.xml
+
+        make
+        test -f results.xml
+
+        mv results.xml results_one.xml
+        mv coverage.dat coverage_one.dat
+        mv tb.vcd tb_one.vcd
+
+        # make will return success even if the test fails, so check for failure in the results.xml
+        ! grep failure results_one.xml
+
+    - name: coverage random
+      run: |
+        source "$OSS_CAD_SUITE_HOME/environment"
+        cd src
+
+        export RANDOM_POLICY=random
+        export DEBUG=true
+
+        make clean
+        rm -f results.xml
+
+        make
+        test -f results.xml
+
+        mv results.xml results_random.xml
+        mv coverage.dat coverage_random.dat
+        mv tb.vcd tb_random.vcd
+
+        # make will return success even if the test fails, so check for failure in the results.xml
+        ! grep failure results_random.xml
+
+    - name: coverage report generation
+      run: |
+        source "$OSS_CAD_SUITE_HOME/environment"
+        cd src
+
+        ./coverage.sh $SIM 2>&1 | tee coverage.txt
+
+    - name: upload coverage
+      if: success() || failure()
+      uses: actions/upload-artifact@v3
+      with:
+          name: coverage
+          path: |
+            src/*.dat
+            src/*.info
+            src/coverage.txt
+            src/coverage_html
+            src/htmlcov/*
+            src/.coverage
+
+    - name: upload vcd
+      if: success() || failure()
+      uses: actions/upload-artifact@v3
+      with:
+          name: coverage-vcd
+          path: |
+            src/*.vcd
+            src/*.fst
+
