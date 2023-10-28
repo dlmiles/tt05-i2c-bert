@@ -12,6 +12,8 @@ project:
     - sky130_toolbox/dffqn_negedge.v
     - sky130_toolbox/dff.v
     - sky130_toolbox/glitch_free_clock_mux.v
+    - sky130_toolbox/sky130_behavioral_udp_dlatch_pr.v
+    - sky130_fd_sc_hd__dlrtp.v
     - sky130_fd_sc_hd__maj3.v
     - TT05I2CBertTop.v
   top_module:  "tt_um_dlmiles_tt05_i2c_bert"      # Put the name of your top module here, must start with "tt_um_". Make it unique by including your github username

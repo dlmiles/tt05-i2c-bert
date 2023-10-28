@@ -14,6 +14,8 @@ VERILOG_SOURCES += $(PWD)/top_tt_um_dlmiles_tt05_i2c_bert.v
 VERILOG_SOURCES += $(PWD)/sky130_toolbox/dffqn_negedge.v
 VERILOG_SOURCES += $(PWD)/sky130_toolbox/dff.v
 VERILOG_SOURCES += $(PWD)/sky130_toolbox/glitch_free_clock_mux.v
+VERILOG_SOURCES += $(PWD)/sky130_toolbox/sky130_behavioral_udp_dlatch_pr.v
+VERILOG_SOURCES += $(PWD)/sky130_fd_sc_hd__dlrtp.v
 VERILOG_SOURCES += $(PWD)/sky130_fd_sc_hd__maj3.v
 VERILOG_SOURCES += $(PWD)/TT05I2CBertTop.v
 
@@ -42,6 +44,7 @@ endif
 
 ifeq ($(SIM),icarus)
 COMPILE_ARGS    += -DTIMING
+COMPILE_ARGS    += -DUNIT_DELAY=\#1
 ifneq ($(CI),true)
 # Only for local simulation, at this time all CI and production removes this feature,
 #  but ideally we want it included in GHA pre-synth simulation (need to add verilog ifdef)
