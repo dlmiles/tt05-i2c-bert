@@ -11,7 +11,8 @@
 `ifndef SYNTHESIS_OPENLANE
 `ifndef UNIT_DELAY
 
-//`define UNIT_DELAY
+// Blank value
+`define UNIT_DELAY
 
 `endif 	// UNIT_DELAY
 `endif	// SYNTHESIS_OPENLANE
