@@ -25,26 +25,26 @@ module tt_um_dlmiles_tt05_i2c_bert (
     reg [7:0] latched_ena_uio_in;
     always_latch begin
         if (!ena)
-            latched_ena_uio_in <= uio_in;
+            latched_ena_uio_in = uio_in;
     end
 
     reg [7:0] latched_ena_ui_in;
     always_latch begin
         if (!ena)
-            latched_ena_ui_in <= ui_in;
+            latched_ena_ui_in = ui_in;
     end
 
     // Configuration latch bit experiment (configuration?)
     reg [7:0] latched_rst_n_uio_in;
     always_latch begin
         if (!rst_n)
-            latched_rst_n_uio_in <= uio_in;
+            latched_rst_n_uio_in = uio_in;
     end
 
     reg [7:0] latched_rst_n_ui_in;
     always_latch begin
         if (!rst_n)
-            latched_rst_n_ui_in <= ui_in;
+            latched_rst_n_ui_in = ui_in;
     end
 
     wire [31:0] latched;
