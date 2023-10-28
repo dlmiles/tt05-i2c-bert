@@ -23,7 +23,7 @@ jobs:
           echo "### For local simulation these top level signal are used for testing the I2C bus"
           echo "### This patch removes the signals so the verilog is ready for production use"
 
-          ./check_verilog_production.sh patch quiet
+          ./check_verilog_production.sh patch patch_synthesis quiet
 
           echo ""
           echo "### This now validates the values inside verilog are production system values or halts the CI"

@@ -17,6 +17,9 @@ VERILOG_FILE="TT05I2CBertTop.v"
 
 ask="PROD"
 patch=0
+patch_coverage=0
+patch_simulation=0
+patch_synthesis=0
 verbose=1
 while [ $# -gt 0 ]
 do
@@ -32,6 +35,15 @@ do
 		;;
 	patch)
 		patch=1
+		;;
+	patch_simulation)
+		patch_simulation=1
+		;;
+	patch_coverage)
+		patch_coverage=1
+		;;
+	patch_synthesis)
+		patch_synthesis=1
 		;;
 	esac
 
@@ -51,6 +63,15 @@ then
 		-e '\/wire .*debug_SCL/d' \
 		-e '\/wire .*debug_SDA/d' \
 		-i "$VERILOG_FILE"
+
+	if [ $patch_synthesis -gt 0 ]
+	then
+		echo "###"
+		echo "### patch_synthesis=$patch_synthesis"
+		echo "###"
+		# Add _2 suffix to SKY130 cells
+		sed -e 's/ sky130_\([^ ]\+\) / sky130_\1_2 /' -i "$VERILOG_FILE"
+	fi
 
 	diff -u "${VERILOG_FILE}.gds_orig" "$VERILOG_FILE" || true
 fi
