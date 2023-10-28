@@ -5,19 +5,6 @@
 `default_nettype none
 
 module tt_um_dlmiles_tt05_i2c_bert (
-`ifdef HAVE_DEBUG_I2C
-    input  wire                 debug_SCL_ie,
-    output wire                 debug_SCL_od,
-    output wire                 debug_SCL_pp,
-    output wire                 debug_SCL_og,
-    output wire                 debug_SCL_pg,
-
-    input  wire                 debug_SDA_ie,
-    output wire                 debug_SDA_od,
-    output wire                 debug_SDA_pp,
-    output wire                 debug_SDA_og,
-    output wire                 debug_SDA_pg,
-`endif
     input  wire [7:0] ui_in,    // Dedicated inputs - connected to the input switches
     output wire [7:0] uo_out,   // Dedicated outputs - connected to the 7 segment display
     input  wire [7:0] uio_in,   // IOs: Bidirectional Input path
@@ -28,6 +15,60 @@ module tt_um_dlmiles_tt05_i2c_bert (
     input  wire       rst_n     // reset_n - low to reset
 );
 
+    // Improve reliability when using TT PCB reset button
+    reg rst_n_sync;
+
+    always @(posedge clk)
+        rst_n_sync <= rst_n;
+
+    // Configuration latch bit experiment (test payload?)
+    reg [7:0] latched_ena_uio_in;
+    always_latch begin
+        if (!ena)
+            latched_ena_uio_in <= uio_in;
+    end
+
+    reg [7:0] latched_ena_ui_in;
+    always_latch begin
+        if (!ena)
+            latched_ena_ui_in <= ui_in;
+    end
+
+    // Configuration latch bit experiment (configuration?)
+    reg [7:0] latched_rst_n_uio_in;
+    always_latch begin
+        if (!rst_n)
+            latched_rst_n_uio_in <= uio_in;
+    end
+
+    reg [7:0] latched_rst_n_ui_in;
+    always_latch begin
+        if (!rst_n)
+            latched_rst_n_ui_in <= ui_in;
+    end
+
+    wire [31:0] latched;
+    assign latched = {latched_ena_uio_in, latched_ena_ui_in, latched_rst_n_uio_in, latched_rst_n_ui_in};
+
+`ifdef HAVE_DEBUG_I2C
+    // These exist like this as some simulators setups used by project do not allow the
+    //  external signal to present X or Z state.  But the simulator can model X/Z state,
+    //  so we provide project verilog enough signal information to create diffrent views
+    //  to help observe signalling.
+    reg  debug_SCL_ie;	// input-enable (peer is driving)
+    wire debug_SCL_od;	// bus view of open-drain
+    wire debug_SCL_pp;	// bus view of push-pull
+    wire debug_SCL_og;	// open-drain is good (should always be true)
+    wire debug_SCL_pg;	// push-pull is good (should always be true)
+
+    reg  debug_SDA_ie;	// input-enable (peer is driving)
+    wire debug_SDA_od;	// bus view of open-drain
+    wire debug_SDA_pp;	// bus view of push-pull
+    // These are designed to be easy to see debug signals to validate (like SVA assert)
+    //  the bus conditions never enter an illegal state (both ends driving).
+    wire debug_SDA_og;	// open-drain is good (should always be true)
+    wire debug_SDA_pg;	// push-pull is good (should always be true)
+`endif
 
     TT05I2CBertTop i2c_bert (
 `ifdef HAVE_DEBUG_I2C
@@ -45,14 +86,16 @@ module tt_um_dlmiles_tt05_i2c_bert (
 `endif
 
         .clk        (clk),              //i
-        .rst_n      (rst_n),            //i
+        .rst_n      (rst_n_sync),       //i
         .ena        (ena),              //i
 
         .ui_in      (ui_in),            //i
         .uo_out     (uo_out),           //o
         .uio_in     (uio_in),           //i
         .uio_out    (uio_out),          //o
-        .uio_oe     (uio_oe)            //o
+        .uio_oe     (uio_oe),           //o
+
+        .latched    (latched)           //i
     );
 
 
