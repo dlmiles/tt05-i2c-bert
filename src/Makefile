@@ -57,6 +57,7 @@ EXTRA_ARGS += -Wno-WIDTHTRUNC
 EXTRA_ARGS += --trace --trace-structs --no-timing
 # FIXME review this (for the maj3.v)
 EXTRA_ARGS += -DFUNCTIONAL
+EXTRA_ARGS += -DUNIT_DELAY
 
 ifeq ($(COVERAGE),yes)
 EXTRA_ARGS += --coverage --coverage-underscore
