@@ -1,6 +1,8 @@
 `timescale 1ns / 1ps
 `default_nettype none
 
+// for use as behavioral only
+`ifndef SYNTHESIS
 // udp_dlatch$PR
 module sky130_fd_sc_hd__udp_dlatch$PR (
     Q    ,
@@ -29,3 +31,4 @@ module sky130_fd_sc_hd__udp_dlatch$PR (
     end
 
 endmodule
+`endif // SYNTHESIS

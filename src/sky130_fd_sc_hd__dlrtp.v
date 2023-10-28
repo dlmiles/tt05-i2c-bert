@@ -342,3 +342,30 @@ endmodule
 
 
 //--------EOF---------
+
+
+`ifdef SYNTHESIS_OPENLANE
+`ifdef IGNORE
+module sky130_fd_sc_hd__dlrtp (
+    Q      ,
+    RESET_B,
+    D      ,
+    GATE
+);
+
+    // Module ports
+    output Q      ;
+    input  RESET_B;
+    input  D      ;
+    input  GATE   ;
+
+    (* keep = "true" *) sky130_fd_sc_hd__dlrtp_2 dlrtp_2 (
+        .Q(Q),
+        .RESET_B(RESET_B),
+        .D(D),
+        .GATE(GATE)
+    );
+
+endmodule
+`endif
+`endif // SYNTHESIS_OPENLANE

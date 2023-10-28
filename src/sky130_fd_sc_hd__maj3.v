@@ -67,3 +67,29 @@ endmodule
 `endif  // SKY130_FD_SC_HD__MAJ3_FUNCTIONAL_V
 //`endif  // FUNCTIONAL
 //`endif  // SYNTHESIS
+
+`ifdef SYNTHESIS_OPENLANE
+`ifdef IGNORE
+module sky130_fd_sc_hd__maj3 (
+    X,
+    A,
+    B,
+    C
+);
+
+    // Module ports
+    output X;
+    input  A;
+    input  B;
+    input  C;
+
+    (* keep = "true" *) sky130_fd_sc_hd__maj3_2 maj3_2 (
+        .X(X),
+        .A(A),
+        .B(B),
+        .C(C)
+    );
+
+endmodule
+`endif
+`endif // SYNTHESIS_OPENLANE
