@@ -18,13 +18,13 @@ module sky130_fd_sc_hd__udp_dlatch$PR (
 
     always_latch begin
         if (RESET) begin
-            Q <= 0;		// immediate async
+            Q = 0;		// immediate async
         end else if (GATE) begin
 `ifdef TIMING
             // TIMING is not allowed inside always_latch
             //#1			// at next simtime tick
 `endif
-            Q <= D;
+            Q = D;
         end
     end
 
