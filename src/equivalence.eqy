@@ -2,9 +2,9 @@
 splitnets on
 
 # Not including TB
-# VERILOG_SOURCES=TT05I2CBertTop.v sky130_toolbox/dffqn_negedge.v sky130_toolbox/dff.v sky130_toolbox/glitch_free_clock_mux.v top_tt_um_dlmiles_tt05_i2c_bert.v
+# VERILOG_SOURCES=TT05I2CBertTop.v sky130_fd_sc_hd__maj3.v sky130_toolbox/dffqn_negedge.v sky130_toolbox/dff.v sky130_toolbox/glitch_free_clock_mux.v top_tt_um_dlmiles_tt05_i2c_bert.v
 [gold]
-read_verilog -sv TT05I2CBertTop.v sky130_toolbox/dffqn_negedge.v sky130_toolbox/dff.v sky130_toolbox/glitch_free_clock_mux.v top_tt_um_dlmiles_tt05_i2c_bert.v
+read_verilog -sv TT05I2CBertTop.v sky130_fd_sc_hd__maj3.v sky130_toolbox/dffqn_negedge.v sky130_toolbox/dff.v sky130_toolbox/glitch_free_clock_mux.v top_tt_um_dlmiles_tt05_i2c_bert.v
 
 [gate]
 exec -- python3 formal_pdk_proc.py primitives.v sky130_fd_sc_hd.v -o formal_pdk.v
