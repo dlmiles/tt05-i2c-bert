@@ -9,6 +9,7 @@
 #	MONITOR=no-suspend Disables an optimization to suspend the FSM monitors (if active) around parts
 #			of the simulation to speed it up.  Keeping them running is only useful to observe
 #			the timing of when an FSM changes state (if that is important for diagnostics)
+#	PUSH_PULL_MODE=true
 #
 #
 # SPDX-FileCopyrightText: Copyright 2023 Darryl Miles
@@ -222,11 +223,11 @@ def run_this_test(default_value: bool = True) -> bool:
     return default_value
 
 
-def resolve_LOW_SPEED():
-    low_speed = False
-    if 'LOW_SPEED' in os.environ:
-        low_speed = True
-    return low_speed
+def resolve_PUSH_PULL_MODE():
+    push_pull_mode = False
+    if 'PUSH_PULL_MODE' in os.environ and os.environ['PUSH_PULL_MODE'] != 'false':
+        push_pull_mode = True
+    return push_pull_mode
 
 
 def usb_spec_wall_clock_tolerance(value: int, LOW_SPEED: bool) -> tuple:
@@ -313,12 +314,22 @@ def gha_dumpvars(dut):
                 dut._log.info("{}={}".format(k, os.environ[k]))
 
 
+def bit(byte: int, bitid: int) -> int:
+    assert bitid >= 0 and bitid <= 7
+    assert (byte & ~0xff) == 0
+    mask = 1 << bitid
+    return (byte & mask) == mask
+
+
+
 @cocotb.test()
 async def test_i2c_bert(dut):
     if 'DEBUG' in os.environ and os.environ['DEBUG'] != 'false':
         dut._log.setLevel(cocotb.logging.DEBUG)
 
     sim_config = SimConfig(dut, cocotb)
+
+    PUSH_PULL_MODE = resolve_PUSH_PULL_MODE()
 
     # The DUT uses a divider from the master clock at this time
     CLOCK_FREQUENCY = 10000000
@@ -374,9 +385,18 @@ async def test_i2c_bert(dut):
 
     await ClockCycles(dut.clk, 6)
 
+    # Latch state setup
+    dut.ui_in.value = 0xa5
+    dut.uio_in.value = 0x5a
+    await ClockCycles(dut.clk, 1)	# need to crank it one for always_latch to work in sim
+
     dut.ena.value = 1
     await ClockCycles(dut.clk, 4)
     assert dut.ena.value == 1		# validates SIM is behaving as expected
+
+    if not GL_TEST:	# Latch state set
+        assert dut.dut.latched_ena_ui_in.value == 0xa5
+        assert dut.dut.latched_ena_uio_in.value == 0x5a
 
     # We waggle this to see if it resolves RANDOM_POLICY=random(iverilog)
     #  where dut.rst_n=0 and dut.dut.rst_n=1 got assigned, need to understand more here
@@ -405,15 +425,37 @@ async def test_i2c_bert(dut):
     await ClockCycles(dut.clk, 4)
     assert dut.rst_n.value == 0
 
+    # Reset state setup
+    dut.ui_in.value = 0x34
+    dut.uio_in.value = 0x12
+    await ClockCycles(dut.clk, 1)	# need to crank it one for always_latch to work in sim
+
+    # Reset state setup
+    dut.ui_in.value = 0x00
+    dut.uio_in.value = 0x00
+
     dut.rst_n.value = 1
-    await ClockCycles(dut.clk, 4)
+    await ClockCycles(dut.clk, 1)
     assert dut.rst_n.value == 1
+
+    if not GL_TEST:    # Reset state set
+        dut.dut.latched_rst_n_ui_in.value == 0x34
+        dut.dut.latched_rst_n_uio_in.value == 0x12
+
+    await ClockCycles(dut.clk, 2)
 
     debug(dut, '001_TEST')
 
-    TICKS_PER_BIT = int(CLOCK_FREQUENCY / SCL_CLOCK_FREQUENCY)
+    TICKS_PER_BIT = 3 #int(CLOCK_FREQUENCY / SCL_CLOCK_FREQUENCY)
 
-    ctrl = I2CController(dut)
+    #CYCLES_PER_BIT = 3
+    #CYCLES_PER_HALFBIT = 1
+    #HALF_EDGE = True
+    CYCLES_PER_BIT = 6
+    CYCLES_PER_HALFBIT = 3
+    HALF_EDGE = False
+
+    ctrl = I2CController(dut, CYCLES_PER_BIT = CYCLES_PER_BIT, pp = True) # PUSH_PULL_MODE)
     ctrl.try_attach_debug_signals()
 
     # Verilator VPI hierarchy discovery workaround
@@ -463,95 +505,158 @@ async def test_i2c_bert(dut):
 
     debug(dut, '001_CMD00_READ')
 
-    ctrl.initialize(PP = True)
-    ctrl.scl_idle()
-    ctrl.sda_idle()
 
-    ctrl.scl_raw = True
-    ctrl.sda_raw = True
-    await ClockCycles(dut.clk, 4)
-    await FallingEdge(dut.clk)
+    #CMD_BYTE = 0xb4
+    CMD_BYTE = 0xf0
 
-    ctrl.sda = False
-    await RisingEdge(dut.clk)
-    await ClockCycles(dut.clk, 1)
 
-    ctrl.scl = False
-    ctrl.sda = True	# bit7
-    await ClockCycles(dut.clk, 1)
-    await FallingEdge(dut.clk)
+    ctrl.initialize()
+    ctrl.idle()
+    await ClockCycles(dut.clk, CYCLES_PER_BIT)
 
-    ctrl.scl = True
-    await RisingEdge(dut.clk)
-    await ClockCycles(dut.clk, 1)
+    # PREMABLE
+    ctrl.set_sda_scl(True, True)
+    await ClockCycles(dut.clk, CYCLES_PER_BIT)
 
-    ctrl.scl = False
-    ctrl.sda = False	# bit6
-    await ClockCycles(dut.clk, 1)
-    await FallingEdge(dut.clk)
+    # START
+    ctrl.set_sda_scl(False, True)	# START transition (setup
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+    if HALF_EDGE:
+        await FallingEdge(dut.clk)
 
-    ctrl.scl = True
-    await RisingEdge(dut.clk)
-    await ClockCycles(dut.clk, 1)
+    ctrl.sda = False			# START transition
+    if HALF_EDGE:
+        await RisingEdge(dut.clk)
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
 
-    ctrl.scl = False
-    ctrl.sda = True	# bit5
-    await ClockCycles(dut.clk, 1)
-    await FallingEdge(dut.clk)
+    # DATA
+    ctrl.set_sda_scl(bit(CMD_BYTE, 7), False)	# bit7=1
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+    if HALF_EDGE:
+        await FallingEdge(dut.clk)
 
     ctrl.scl = True
-    await RisingEdge(dut.clk)
-    await ClockCycles(dut.clk, 1)
+    if HALF_EDGE:
+        await RisingEdge(dut.clk)
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
 
-    ctrl.scl = False
-    ctrl.sda = True	# bit4
-    await ClockCycles(dut.clk, 1)
-    await FallingEdge(dut.clk)
-
-    ctrl.scl = True
-    await RisingEdge(dut.clk)
-    await ClockCycles(dut.clk, 1)
-
-    ctrl.scl = False
-    ctrl.sda = False	# bit3
-    await ClockCycles(dut.clk, 1)
-    await FallingEdge(dut.clk)
+    ctrl.set_sda_scl(bit(CMD_BYTE, 6), False)	# bit6=0
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+    if HALF_EDGE:
+        await FallingEdge(dut.clk)
 
     ctrl.scl = True
-    await RisingEdge(dut.clk)
-    await ClockCycles(dut.clk, 1)
+    if HALF_EDGE:
+        await RisingEdge(dut.clk)
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
 
-    ctrl.scl = False
-    ctrl.sda = True	# bit2
-    await ClockCycles(dut.clk, 1)
-    await FallingEdge(dut.clk)
-
-    ctrl.scl = True
-    await RisingEdge(dut.clk)
-    await ClockCycles(dut.clk, 1)
-
-    ctrl.scl = False
-    ctrl.sda = False	# bit1
-    await ClockCycles(dut.clk, 1)
-    await FallingEdge(dut.clk)
+    ctrl.set_sda_scl(bit(CMD_BYTE, 5), False)	# bit5=1
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+    if HALF_EDGE:
+        await FallingEdge(dut.clk)
 
     ctrl.scl = True
-    await RisingEdge(dut.clk)
-    await ClockCycles(dut.clk, 1)
+    if HALF_EDGE:
+        await RisingEdge(dut.clk)
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
 
-    ctrl.scl = False
-    ctrl.sda = False	# bit0
-    await ClockCycles(dut.clk, 1)
-    await FallingEdge(dut.clk)
+    ctrl.set_sda_scl(bit(CMD_BYTE, 4), False)	# bit4=1
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+    if HALF_EDGE:
+        await FallingEdge(dut.clk)
 
     ctrl.scl = True
-    await RisingEdge(dut.clk)
-    await ClockCycles(dut.clk, 1)
+    if HALF_EDGE:
+        await RisingEdge(dut.clk)
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+
+    ctrl.set_sda_scl(bit(CMD_BYTE, 3), False)	# bit3=0
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+    if HALF_EDGE:
+        await FallingEdge(dut.clk)
+
+    ctrl.scl = True
+    if HALF_EDGE:
+        await RisingEdge(dut.clk)
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+
+    ctrl.set_sda_scl(bit(CMD_BYTE, 2), False)	# bit2=1
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+    if HALF_EDGE:
+        await FallingEdge(dut.clk)
+
+    ctrl.scl = True
+    if HALF_EDGE:
+        await RisingEdge(dut.clk)
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+
+    ctrl.set_sda_scl(bit(CMD_BYTE, 1), False)	# bit1=0
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+    if HALF_EDGE:
+        await FallingEdge(dut.clk)
+
+    ctrl.scl = True
+    if HALF_EDGE:
+        await RisingEdge(dut.clk)
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+
+    ctrl.set_sda_scl(bit(CMD_BYTE, 0), False)	# bit0=0 (WRITE)
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+    if HALF_EDGE:
+        await FallingEdge(dut.clk)
+
+    ctrl.scl = True
+    if HALF_EDGE:
+        await RisingEdge(dut.clk)
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+
+    ctrl.set_sda_scl(None, False)
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+    if HALF_EDGE:
+        await FallingEdge(dut.clk)
+
+    ## SAMPLE
+    ctrl.scl = True		## FIXME check SDA still idle
+    if HALF_EDGE:
+        await RisingEdge(dut.clk)
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+
+    # STOP
+    ctrl.set_sda_scl(False, False)		# SDA setup to ensure transition
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+    if HALF_EDGE:
+        await FallingEdge(dut.clk)
+
+    ctrl.scl = True
+    if HALF_EDGE:
+        await RisingEdge(dut.clk)
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+
+    ctrl.sda = True				# STOP transition
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+    if HALF_EDGE:
+        await FallingEdge(dut.clk)
+
+    if HALF_EDGE:
+        await RisingEdge(dut.clk)
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+
+    ctrl.idle()
 
 
-    ctrl.scl_idle()
-    ctrl.sda_idle()
+    ## cooked mode
 
+    #ctrl.start()
+
+    #ctrl.send(0x00)
+    #nack = ctrl.recv_ack()
+
+    #ctrl.send(0xff)
+    #nack = ctrl.recv_ack()
+
+    #ctrl.stop()
+
+    #ctrl.idle()
 
     await ClockCycles(dut.clk, 256)
 
@@ -560,6 +665,29 @@ async def test_i2c_bert(dut):
     if run_this_test(True):
         debug(dut, '100_CMD00_RESET')
 
+
+    dut.ui_in.value = 0
+    dut.uio_in.value = 0
+    await ClockCycles(dut.clk, 4)
+
+    dut.rst_n.value = 0
+    await ClockCycles(dut.clk, 1)
+
+    if not GL_TEST:	# Latch state zeroed?
+        assert dut.dut.latched_rst_n_ui_in.value == 0x00
+        assert dut.dut.latched_rst_n_uio_in.value == 0x00
+
+    await ClockCycles(dut.clk, 3)
+
+    dut.ena.value = 0
+    await ClockCycles(dut.clk, 1)
+
+    if not GL_TEST:	# Latch state zeroed?
+        assert dut.dut.latched_ena_ui_in.value == 0x00
+        assert dut.dut.latched_ena_uio_in.value == 0x00
+
+    await ClockCycles(dut.clk, 3)
+
     ##############################################################################################
 
     debug(dut, '999_DONE')
@@ -567,7 +695,7 @@ async def test_i2c_bert(dut):
 
     MONITOR.shutdown()
 
-    await ClockCycles(dut.clk, TICKS_PER_BIT*32)
+    await ClockCycles(dut.clk, 32)
 
     report_resolvable(dut, filter=exclude_re_path)
 

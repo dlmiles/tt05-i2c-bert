@@ -79,7 +79,7 @@ class SignalAccessor():
                     bstr = vstr[-self._bitid-1]		# minus prefix due to bit0 on right hand side
                 else:
                     assert False, f"width = {self._width}"
-                #print(f"SignalAccessor(path={self._path}) = {vstr} => {self._bitid} for {bstr}")
+                #print(f"SignalAccessor(path={self.path}) = {vstr} => {self._bitid} for {bstr}")
                 v = BinaryValue(bstr, n_bits=len(bstr))
                 return v
 
@@ -133,29 +133,43 @@ class SignalAccessor():
             self._last_bit = last_bit
             assert last_bit >= first_bit
             self._width = last_bit - first_bit + 1
-            assert width > 1
+            assert self._width > 1
             return None
 
 
         @property
         def value(self):
             vstr = self._sa.signal_str()
+            ov = vstr[-self._last_bit-1 : -self._first_bit:]
+            bv = BinaryValue(ov, n_bits=self._width)
+            print(f"GET AccessorBus.value = {str(bv)} from BinaryValue({ov})")
             ## isolate
-            assert False, f"width = {self._width}"
-            #print(f"SignalAccessor(path={self._path}) = {vstr} => {self._bitid} for {bstr}")
+            print(f"SignalAccessor(path={self.path}) = {vstr} => {self._last_bit}:{self._first_bit} for {bstr}")
             v = BinaryValue(bstr, n_bits=len(bstr))
             return v
 
 
         @value.setter
-        def value(self, v: int) -> None:
-            assert isinstance(v, int)
-            nv = '1' if (v) else '0'	# FIXME BinaryValue
-            vstr = self._sa.signal_str()
-            ## isolate
-            assert False, f"width = {self._width}"
-            print(f"SignalAccessor(path={self.path}) = {vstr} => {self._bitid} for {nstr}")
-            self._sa.signal_update(BinaryValue(nstr, n_bits=len(nstr)))
+        def value(self, v) -> None:
+            assert isinstance(v, int) or isinstance(v, str)
+            if isinstance(v, int):
+                bv = BinaryValue(v, n_bits=self._width)
+                print(f"SET AccessorBus.value = {str(bv)}")
+                vstr = self._sa.signal_str()
+                ## isolate
+                nv = str(bv)
+                nstr = vstr[0:-self._last_bit-1] + nv + vstr[-self._first_bit:]
+                print(f"SignalAccessor(path={self.path}) = {vstr} => {self._last_bit}:{self._first_bit} for {nstr} with {nv}")
+                self._sa.signal_update(BinaryValue(nstr, n_bits=len(nstr)))
+            elif isinstance(v, str):
+                bv = BinaryValue(v, n_bits=self._width)
+                print(f"SET AccessorBus.value = {str(bv)}  STR")
+                vstr = self._sa.signal_str()
+                ## isolate
+                nv = str(bv)
+                nstr = vstr[0:-self._last_bit-1] + nv + vstr[-self._first_bit:]
+                print(f"SignalAccessor(path={self.path}) = {vstr} => {self._last_bit}:{self._first_bit} for {nstr} with {nv} STR")
+                self._sa.signal_update(BinaryValue(nstr, n_bits=len(nstr)))
             return None
 
 
@@ -242,7 +256,7 @@ class SignalAccessor():
                 bstr = vstr[-self._bitid-1]		# minus prefix due to bit0 on right hand side
             else:
                 assert False, f"width = {self._width}"
-            #print(f"SignalAccessor(path={self._path}) = {vstr} => {self._bitid} for {bstr}")
+            #print(f"SignalAccessor(path={self.path}) = {vstr} => {self._bitid} for {bstr}")
             v = BinaryValue(bstr, n_bits=len(bstr))
             return v
 
@@ -262,7 +276,7 @@ class SignalAccessor():
                 print(f"vstr = {vstr}, bitid={self._bitid} nstr={nstr} left={vstr[0:-self._bitid-1]} right={vstr[-self._bitid:]} v={v}")
             else:
                 assert False, f"width = {self._width}"
-            print(f"SignalAccessor(path={self._path}) = {vstr} => {self._bitid} for {nstr}")
+            print(f"SignalAccessor(path={self.path}) = {vstr} => {self._bitid} for {nstr}")
             self.signal_update(BinaryValue(nstr, n_bits=len(nstr)))
             return None
 
