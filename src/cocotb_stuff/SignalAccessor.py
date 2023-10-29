@@ -105,7 +105,7 @@ class SignalAccessor():
 
         @property
         def raw(self):
-            return self._signal		# maybe this should be removed ?
+            return self._sa.raw		# maybe this should be removed ?
 
 
         @property
@@ -174,7 +174,7 @@ class SignalAccessor():
 
         @property
         def raw(self):
-            return self._signal		# maybe this should be removed ?
+            return self._sa.raw		# maybe this should be removed ?
 
 
         @property

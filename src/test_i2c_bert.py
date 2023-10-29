@@ -508,7 +508,8 @@ async def test_i2c_bert(dut):
     debug(dut, '001_RAW_READ')
 
     #CMD_BYTE = 0xb5
-    CMD_BYTE = 0xf1
+    #CMD_BYTE = 0xf1
+    CMD_BYTE = 0x01	# CMD_ONE
 
     ctrl.initialize()
     ctrl.idle()
@@ -626,6 +627,14 @@ async def test_i2c_bert(dut):
         await FallingEdge(dut.clk)
 
     ## SAMPLE
+    if ctrl.sda_oe:
+        nack = ctrl.sda_rx
+    elif not ctrl._modeIsPP:
+        nack = ctrl.PULLUP	# open-drain
+    else:
+        nack = None
+    assert nack is ctrl.ACK
+
     ctrl.scl = True		## FIXME check SDA still idle
     if HALF_EDGE:
         await RisingEdge(dut.clk)
@@ -658,15 +667,19 @@ async def test_i2c_bert(dut):
 
     ## cooked mode
 
+    CAN_ASSERT = True
+
     debug(dut, '002_COOKED_WRITE')
 
     await ctrl.send_start()
 
     await ctrl.send_data(0x00)
-    nack = await ctrl.recv_ack()
+    nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+    assert nack is ctrl.ACK
 
     await ctrl.send_data(0xff)
-    nack = await ctrl.recv_ack()
+    nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+    assert nack is ctrl.ACK
 
     await ctrl.send_stop()
 
@@ -683,8 +696,8 @@ async def test_i2c_bert(dut):
         await ctrl.send_start()
 
         await ctrl.send_data(0xf0)
-        nack = await ctrl.recv_ack()
-        assert not nack	# ack
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        assert nack is ctrl.ACK
 
         await ctrl.send_stop()
 
@@ -700,9 +713,9 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_start()
 
-        await ctrl.send_data(0xc0)
-        nack = await ctrl.recv_ack()
-        assert not nack	# ack
+        await ctrl.send_data(0x80)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        assert nack is ctrl.ACK
 
         await ctrl.send_stop()
 
@@ -718,9 +731,9 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_start()
 
-        await ctrl.send_data(0xc1)
-        nack = await ctrl.recv_ack()
-        assert not nack	# ack
+        await ctrl.send_data(0x81)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        assert nack is ctrl.ACK
 
         await ctrl.send_stop()
 
@@ -736,9 +749,9 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_start()
 
-        await ctrl.send_data(0x40)
-        nack = await ctrl.recv_ack()
-        #assert nack	# NACK
+        await ctrl.send_data(0x84)
+        nack = await ctrl.recv_ack(ctrl.NACK, CAN_ASSERT)
+        assert nack is ctrl.NACK	# NACK
 
         await ctrl.send_stop()
 
@@ -754,9 +767,9 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_start()
 
-        await ctrl.send_data(0x41)
-        nack = await ctrl.recv_ack()
-        #assert nack	# NACK
+        await ctrl.send_data(0x85)
+        nack = await ctrl.recv_ack(ctrl.NACK, CAN_ASSERT)
+        assert nack is ctrl.NACK	# NACK
 
         await ctrl.send_stop()
 
@@ -773,8 +786,9 @@ async def test_i2c_bert(dut):
         await ctrl.send_start()
 
         await ctrl.send_data(0xcc)
-        nack = await ctrl.recv_ack()
-        assert not nack	# ack
+        # FIXME this NACKs as noimpl
+        nack = await ctrl.recv_ack(ctrl.NACK, CAN_ASSERT)
+        assert nack is ctrl.NACK
 
         await ctrl.send_stop()
 
@@ -786,13 +800,21 @@ async def test_i2c_bert(dut):
     ##############################################################################################
 
     if run_this_test(True):
-        debug(dut, '280_STRETCH')
+        debug(dut, '300_STRETCH_rd')
 
         await ctrl.send_start()
 
         await ctrl.send_data(0xc8)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        assert nack is ctrl.ACK
+
+        # FIXME this ACKs but noimpl
+
+        # FIXME need to add sense on SCL after we try to rise
+        data = await ctrl.recv_data()
+        dut._log.info("STRETCH = {str(data):x}")
         nack = await ctrl.recv_ack()
-        assert not nack	# ack
+        #assert nack is None	## FIXME
 
         await ctrl.send_stop()
 
@@ -804,13 +826,13 @@ async def test_i2c_bert(dut):
     ##############################################################################################
 
     if run_this_test(True):
-        debug(dut, '300_GETLATCH')
+        debug(dut, '400_GETLATCH')
 
         await ctrl.send_start()
 
         await ctrl.send_data(0xf1)
-        nack = await ctrl.recv_ack()
-        assert not nack	# ack
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        assert nack is ctrl.ACK
 
         data = await ctrl.recv_data()
         dut._log.info("LATCH[0] = {str(data):x}")
@@ -828,8 +850,8 @@ async def test_i2c_bert(dut):
         dut._log.info("LATCH[3] = {str(data):x}")
         await ctrl.send_ack()
 
-        #assert
-        await ctrl.check_recv_is_idle(CYCLES_PER_HALFBIT)
+        ctrl.sda_idle()
+        assert await ctrl.check_recv_is_idle(CYCLES_PER_HALFBIT)
 
         await ctrl.send_stop()
 

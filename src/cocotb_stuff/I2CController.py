@@ -26,6 +26,9 @@ class I2CController():
     PULLUP = True
     PREFIX = "dut.debug_"
 
+    # Line state constants
+    ACK = False
+    NACK = True
 
     def __init__(self, dut, CYCLES_PER_BIT: int, pp: bool = False, GL_TEST: bool = False):
         self._dut = dut
@@ -156,7 +159,7 @@ class I2CController():
 
 
     async def send_data(self, byte: int) -> None:
-        for bitid in range(8):
+        for bitid in reversed(range(8)):
             m = 1 << bitid
             bf = True if((byte & m) != 0) else False
 
@@ -171,7 +174,21 @@ class I2CController():
             await ClockCycles(self._dut.clk, self.CYCLES_PER_HALFBIT)
 
 
-    async def recv_ack(self) -> bool:
+    # no_pullup this disables any pullup interpretion of line state
+    # tx_overlay this concerns if our TX situation is visible to the return value
+    def sda_rx_resolve(self, no_pullup: bool = False, tx_overlay: bool = False) -> bool:
+        if tx_overlay and not self._sda_idle:
+            v = self._sda_state	# not idle, TX will overide any RX value (because we can't RX when we TX)
+        elif self.sda_oe:
+            v = self.sda_rx
+        elif not self._modeIsPP and not no_pullup:
+            v = self.PULLUP	# open-drain
+        else:
+            v = None
+        return v
+
+
+    async def recv_ack(self, expect: bool = None, can_assert: bool = False) -> bool:
         assert self.scl
 
         self.set_sda_scl(None, False)		# SDA idle
@@ -179,17 +196,81 @@ class I2CController():
         if self.HALFEDGE:
             await FallingEdge(self._dut.clk)
 
+        nack = self.sda_rx_resolve()
+
         self.scl = True
-        nack = self.sda_rx
+
         if self.HALFEDGE:
             await RisingEdge(self._dut.clk)
         await ClockCycles(self._dut.clk, self.CYCLES_PER_HALFBIT)
 
-        nack
+        # Ok we try to perform a bit of a diagnostic as the ACK/NACK part seems an
+        #  important thing and tricky to understand what the corrective action is
+        #  and which side is at fault
+        if expect is not None:
+            expect_s = 'NACK' if expect is self.NACK else 'ACK'
+            nack_s = 'NACK' if nack is self.NACK else 'ACK'
+
+            warn = False
+            need_assert = False
+
+            if not self._sda_idle:
+                desc = f"WARN: TB is still driving SDA IE=1 so can not rx DUT"
+                warn = True
+            elif not self.sda_oe and self._modeIsPP:
+                desc = f"WARN: DUT has not set SDA OE to drive line (mode=PP)"
+                warn = True
+            elif self.sda_oe and not self.sda_rx is self.ACK:
+                desc = f"DUT is driving ACK state"
+            elif self.sda_oe and self.sda_rx is self.NACK:
+                if self._modeIsPP:
+                    desc = f"DUT is driving NACK state"
+                else:
+                    desc = f"WARN: DUT is driving NACK state, but in open-drain it should use pull-up and set OE=0 (mode=OD)"
+                    warn = True
+
+            ie = not self._sda_idle
+            if self._haveSdaIe:
+                ie = str(self._dut.dut.debug_SDA_ie.value)
+
+            # We only report one issue (the one to fix first)
+            if expect is not nack:
+                self._dut._log.warning(f"recv_ack(expect={expect}[{expect_s}]) EXPECT FAILED actual={nack}[{nack_s}] oe={self.sda_oe} rx={self.sda_rx} ie={ie} ({desc})")
+                need_assert = True
+            elif not self._modeIsPP and self.sda_oe and self.sda_rx is self.NACK:
+                self._dut._log.warning(f"recv_ack(expect={expect}[{expect_s}]) OPEN-DRAIN FAILED oe={self.sda_oe} rx={self.sda_rx} ie={ie} ({desc})")
+                need_assert = True
+            elif warn:
+                self._dut._log.warning(f"recv_ack(expect={expect}[{expect_s}]) WARNING actual={nack}[{nack_s}] oe={self.sda_oe} rx={self.sda_rx} ie={ie} ({desc}))")
+
+            if can_assert and need_assert:
+                assert False, f"recv_ack(expect={expect}[{expect_s}]) but line state is {nack}[{nack_s}]"
+
+        return nack
 
 
-    async def recv_data(self) -> int:
+    async def recv_data(self, bit_count: int = 8) -> int:
+        assert bit_count > 0
         assert self.scl
+        value = 0
+        for bitid in reversed(range(bit_count)):
+            bit_mask = 1 << bitid
+
+            self.set_sda_scl(None, False)       # idle SDA
+            await ClockCycles(self._dut.clk, self.CYCLES_PER_HALFBIT)
+            if self.HALFEDGE:
+                await FallingEdge(self._dut.clk)
+
+            self.scl = True
+            ## FIXME check driver etc... perform diagnostic, reuse recv_nack() logic ?
+            bit_value = self.sda_rx_resolve()
+            if bit_value:
+                value |= bit_mask
+
+            if self.HALFEDGE:
+                await RisingEdge(self._dut.clk)
+            await ClockCycles(self._dut.clk, self.CYCLES_PER_HALFBIT)
+        return value
 
 
     async def send_bit(self, bit: bool = False) -> None:
@@ -217,12 +298,12 @@ class I2CController():
     async def check_recv_is_idle(self, cycles: int = 0, no_warn: bool = False) -> bool:
         # warn if we are not idle on our side ?
         if not no_warn and not self._sda_idle:
-            self._dut._log.warn(f"check_recv_is_idle() but SDA is not idle sending")
+            self._dut._log.warning(f"check_recv_is_idle() but SDA has not set TX idle (HiZ)")
 
         # signal scl_oe
         if self.sda_oe:
             return False
-        for i in range(cycle):
+        for i in range(cycles):
             await ClockCycles(self._dut.clk, 1)
             if self.sda_oe:
                 return False
@@ -232,7 +313,7 @@ class I2CController():
     def scl_idle(self, v: bool = None) -> bool:
         if self._haveSclIe:
             bf = v is not None and ( v is not self.PULLUP or self._modeIsPP )
-            print(f"scl_idle({v})  pp={self._modeIsPP}  bf={bf}")
+            self._dut._log.info(f"scl_idle({v})  pp={self._modeIsPP}  bf={bf}")
             self._dut.dut.debug_SCL_ie.value = bf
         self._scl_idle = v is None
         return v
@@ -241,7 +322,7 @@ class I2CController():
     def sda_idle(self, v: bool = None) -> bool:
         if self._haveSdaIe:
             bf = v is not None and ( v is not self.PULLUP or self._modeIsPP )
-            print(f"sda_idle({v})  pp={self._modeIsPP}  bf={bf}")
+            self._dut._log.info(f"sda_idle({v})  pp={self._modeIsPP}  bf={bf}")
             self._dut.dut.debug_SDA_ie.value = bf
         self._sda_idle = v is None
         return v
