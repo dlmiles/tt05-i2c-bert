@@ -455,7 +455,7 @@ async def test_i2c_bert(dut):
     CYCLES_PER_HALFBIT = 3
     HALF_EDGE = False
 
-    ctrl = I2CController(dut, CYCLES_PER_BIT = CYCLES_PER_BIT, pp = True) # PUSH_PULL_MODE)
+    ctrl = I2CController(dut, CYCLES_PER_BIT = CYCLES_PER_BIT, pp = True, GL_TEST = GL_TEST) # PUSH_PULL_MODE)
     ctrl.try_attach_debug_signals()
 
     # Verilator VPI hierarchy discovery workaround
@@ -503,12 +503,12 @@ async def test_i2c_bert(dut):
 
     #############################################################################################
 
-    debug(dut, '001_CMD00_READ')
+    ## raw more
 
+    debug(dut, '001_RAW_READ')
 
-    #CMD_BYTE = 0xb4
-    CMD_BYTE = 0xf0
-
+    #CMD_BYTE = 0xb5
+    CMD_BYTE = 0xf1
 
     ctrl.initialize()
     ctrl.idle()
@@ -653,9 +653,12 @@ async def test_i2c_bert(dut):
 
     ctrl.idle()
 
+    debug(dut, '')
     await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
 
     ## cooked mode
+
+    debug(dut, '002_COOKED_WRITE')
 
     await ctrl.send_start()
 
@@ -669,6 +672,7 @@ async def test_i2c_bert(dut):
 
     ctrl.idle()
 
+    debug(dut, '')
     await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
 
     ##############################################################################################
@@ -686,6 +690,7 @@ async def test_i2c_bert(dut):
 
         ctrl.idle()
 
+        debug(dut, '')
         await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
 
     ##############################################################################################
@@ -703,6 +708,7 @@ async def test_i2c_bert(dut):
 
         ctrl.idle()
 
+        debug(dut, '')
         await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
 
     ##############################################################################################
@@ -720,6 +726,7 @@ async def test_i2c_bert(dut):
 
         ctrl.idle()
 
+        debug(dut, '')
         await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
 
     ##############################################################################################
@@ -737,6 +744,7 @@ async def test_i2c_bert(dut):
 
         ctrl.idle()
 
+        debug(dut, '')
         await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
 
     ##############################################################################################
@@ -754,6 +762,7 @@ async def test_i2c_bert(dut):
 
         ctrl.idle()
 
+        debug(dut, '')
         await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
 
     ##############################################################################################
@@ -771,6 +780,7 @@ async def test_i2c_bert(dut):
 
         ctrl.idle()
 
+        debug(dut, '')
         await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
 
     ##############################################################################################
@@ -788,6 +798,7 @@ async def test_i2c_bert(dut):
 
         ctrl.idle()
 
+        debug(dut, '')
         await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
 
     ##############################################################################################
@@ -824,6 +835,7 @@ async def test_i2c_bert(dut):
 
         ctrl.idle()
 
+        debug(dut, '')
         await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
 
     ##############################################################################################

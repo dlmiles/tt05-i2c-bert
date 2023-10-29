@@ -27,8 +27,9 @@ class I2CController():
     PREFIX = "dut.debug_"
 
 
-    def __init__(self, dut, CYCLES_PER_BIT: int, pp: bool = False):
+    def __init__(self, dut, CYCLES_PER_BIT: int, pp: bool = False, GL_TEST: bool = False):
         self._dut = dut
+        self.GL_TEST = GL_TEST
 
         self.CYCLES_PER_BIT = CYCLES_PER_BIT
         self.HALFEDGE = CYCLES_PER_BIT % 2 != 0
@@ -37,7 +38,7 @@ class I2CController():
         self._dut._log.info("I2CController(CYCLES_PER_BIT={self.CYCLES_PER_BIT}, HALFEDGE={self.HALFEDGE}, CYCLES_PER_HALFBIT={self.CYCLES_PER_HALFBIT})")
 
         self._sa_uio_in = SignalAccessor(dut, 'uio_in')	# FIXME pull from shared registry ?
-        # This is broken use self._sdascl
+        # This is a broken idea (over VPI) use self._sdascl
         #self._scl = self._sa.register('uio_in:SCL', SCL_BITID)
         #self._sda = self._sa.register('uio_in:SDA', SDA_BITID)
         self._sdascl = self._sa_uio_in.register('uio_in', SCL_BITID, SDA_BITID)
@@ -299,11 +300,19 @@ class I2CController():
 
     @property
     def sda_rx(self) -> bool:
+        if self.GL_TEST and not self._sdascl_out.is_resolvable():
+            nv = False	# FIXME pickup RANDOM_POLICY
+            self._dut._log.warn("GL_TEST I2CController.sda_rx() = {str(self._sdascl_out)} [IS_NOT_RESOLABLE] using {nv}")
+            return nv
         return self._sdascl_out.value & 2 != 0
 
 
     @property
     def sda_oe(self) -> bool:
+        if self.GL_TEST and not self._sdascl_out.is_resolvable():
+            nv = False	# FIXME pickup RANDOM_POLICY
+            self._dut._log.warn("GL_TEST I2CController.sda_rx() = {str(self._sdascl_out)} [IS_NOT_RESOLABLE] using {nv}")
+            return nv
         return self._sdascl_oe.value & 2 != 0
 
 
