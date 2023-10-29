@@ -241,18 +241,18 @@ module MyState (
   wire                fsmPhase_wantKill;
   reg        [2:0]    fsmPhase_stateReg;
   reg        [2:0]    fsmPhase_stateNext;
-  wire                when_I2CBertTop_l317;
-  wire                when_I2CBertTop_l383;
-  wire                when_I2CBertTop_l385;
-  wire                when_I2CBertTop_l406;
+  wire                when_I2CBertTop_l318;
+  wire                when_I2CBertTop_l386;
+  wire                when_I2CBertTop_l388;
+  wire                when_I2CBertTop_l413;
   wire       [0:0]    switch_Misc_l226;
   reg        [7:0]    _zz_io_data8tx;
   reg        [7:0]    _zz_io_data8tx_1;
   wire       [1:0]    switch_Misc_l226_1;
   reg        [7:0]    _zz_io_data8tx_2;
-  wire                when_I2CBertTop_l453;
-  wire                when_I2CBertTop_l467;
-  wire                when_I2CBertTop_l468;
+  wire                when_I2CBertTop_l460;
+  wire                when_I2CBertTop_l474;
+  wire                when_I2CBertTop_l475;
   `ifndef SYNTHESIS
   reg [55:0] fsmPhase_stateReg_string;
   reg [55:0] fsmPhase_stateNext_string;
@@ -387,7 +387,7 @@ module MyState (
         if(io_wantTick) begin
           casez(cmd8)
             8'b11100000 : begin
-              if(when_I2CBertTop_l383) begin
+              if(when_I2CBertTop_l386) begin
                 io_timerLoadH = 1'b1;
               end
             end
@@ -416,8 +416,8 @@ module MyState (
         if(io_wantTick) begin
           casez(cmd8)
             8'b11100000 : begin
-              if(!when_I2CBertTop_l383) begin
-                if(when_I2CBertTop_l385) begin
+              if(!when_I2CBertTop_l386) begin
+                if(when_I2CBertTop_l388) begin
                   io_timerLoadL = 1'b1;
                 end
               end
@@ -449,7 +449,7 @@ module MyState (
       end
       fsmPhase_enumDef_CONTROL : begin
         if(io_wantTick) begin
-          if(!when_I2CBertTop_l317) begin
+          if(!when_I2CBertTop_l318) begin
             casez(io_datain8rxNow)
               8'b11110000 : begin
                 alu_1_io_reset = 1'b1;
@@ -462,7 +462,7 @@ module MyState (
               end
               8'b11001100 : begin
               end
-              8'b??????1?, 8'b11111000, 8'b11100000, 8'b11000000, 8'b11010000, 8'b11111100 : begin
+              8'b??????1?, 8'b11111000, 8'b11100000, 8'b11000000, 8'b11010000, 8'b11111100, 8'b00000000 : begin
               end
               default : begin
               end
@@ -589,7 +589,7 @@ module MyState (
     fsmPhase_wantExit = 1'b0;
     case(fsmPhase_stateReg)
       fsmPhase_enumDef_RESET : begin
-        if(io_wantTick) begin
+        if(io_wantReset) begin
           fsmPhase_wantExit = 1'b1;
         end
       end
@@ -621,15 +621,15 @@ module MyState (
     fsmPhase_stateNext = fsmPhase_stateReg;
     case(fsmPhase_stateReg)
       fsmPhase_enumDef_RESET : begin
-        if(io_wantTick) begin
+        if(io_wantReset) begin
           fsmPhase_stateNext = fsmPhase_enumDef_BOOT;
         end
       end
       fsmPhase_enumDef_CONTROL : begin
         if(io_wantTick) begin
-          if(when_I2CBertTop_l317) begin
+          if(when_I2CBertTop_l318) begin
             casez(io_datain8rxNow)
-              8'b1000000? : begin
+              8'b1000000?, 8'b00000001 : begin
                 fsmPhase_stateNext = fsmPhase_enumDef_RESET;
               end
               8'b1000010? : begin
@@ -659,7 +659,7 @@ module MyState (
               8'b11001100 : begin
                 fsmPhase_stateNext = fsmPhase_enumDef_RESET;
               end
-              8'b??????1?, 8'b11111000, 8'b11100000, 8'b11000000, 8'b11010000, 8'b11111100 : begin
+              8'b??????1?, 8'b11111000, 8'b11100000, 8'b11000000, 8'b11010000, 8'b11111100, 8'b00000000 : begin
                 fsmPhase_stateNext = fsmPhase_enumDef_RECV;
               end
               default : begin
@@ -676,8 +676,8 @@ module MyState (
               fsmPhase_stateNext = fsmPhase_enumDef_RESET;
             end
             8'b11100000 : begin
-              if(!when_I2CBertTop_l383) begin
-                if(when_I2CBertTop_l385) begin
+              if(!when_I2CBertTop_l386) begin
+                if(when_I2CBertTop_l388) begin
                   fsmPhase_stateNext = fsmPhase_enumDef_RESET;
                 end
               end
@@ -685,11 +685,14 @@ module MyState (
             8'b11111000 : begin
               fsmPhase_stateNext = fsmPhase_enumDef_RESET;
             end
+            8'b00000000 : begin
+              fsmPhase_stateNext = fsmPhase_enumDef_RESET;
+            end
             8'b11000000 : begin
               fsmPhase_stateNext = fsmPhase_enumDef_RESET;
             end
             8'b??????1? : begin
-              if(when_I2CBertTop_l406) begin
+              if(when_I2CBertTop_l413) begin
                 fsmPhase_stateNext = fsmPhase_enumDef_RESET;
               end
             end
@@ -705,7 +708,7 @@ module MyState (
               fsmPhase_stateNext = fsmPhase_enumDef_RESET;
             end
             8'b??????1? : begin
-              if(when_I2CBertTop_l453) begin
+              if(when_I2CBertTop_l460) begin
                 fsmPhase_stateNext = fsmPhase_enumDef_RESET;
               end
             end
@@ -716,8 +719,8 @@ module MyState (
       end
       fsmPhase_enumDef_STRETCH : begin
         if(io_wantTick) begin
-          if(when_I2CBertTop_l467) begin
-            if(when_I2CBertTop_l468) begin
+          if(when_I2CBertTop_l474) begin
+            if(when_I2CBertTop_l475) begin
               fsmPhase_stateNext = fsmPhase_enumDef_SEND;
             end else begin
               fsmPhase_stateNext = fsmPhase_enumDef_RECV;
@@ -739,10 +742,10 @@ module MyState (
     end
   end
 
-  assign when_I2CBertTop_l317 = (io_datain8rxNow[0] == 1'b1);
-  assign when_I2CBertTop_l383 = (counter == 12'h000);
-  assign when_I2CBertTop_l385 = (counter == 12'h001);
-  assign when_I2CBertTop_l406 = (counter == len12);
+  assign when_I2CBertTop_l318 = (io_datain8rxNow[0] == 1'b1);
+  assign when_I2CBertTop_l386 = (counter == 12'h000);
+  assign when_I2CBertTop_l388 = (counter == 12'h001);
+  assign when_I2CBertTop_l413 = (counter == len12);
   assign switch_Misc_l226 = counter[0 : 0];
   always @(*) begin
     case(switch_Misc_l226)
@@ -779,9 +782,9 @@ module MyState (
     endcase
   end
 
-  assign when_I2CBertTop_l453 = (counter == len12);
-  assign when_I2CBertTop_l467 = (counter == len12);
-  assign when_I2CBertTop_l468 = (readWriteBit == 1'b1);
+  assign when_I2CBertTop_l460 = (counter == len12);
+  assign when_I2CBertTop_l474 = (counter == len12);
+  assign when_I2CBertTop_l475 = (readWriteBit == 1'b1);
   always @(posedge clk) begin
     if(!rst_n) begin
       len8 <= 8'h00;
@@ -794,9 +797,9 @@ module MyState (
         end
         fsmPhase_enumDef_CONTROL : begin
           if(io_wantTick) begin
-            if(when_I2CBertTop_l317) begin
+            if(when_I2CBertTop_l318) begin
               casez(io_datain8rxNow)
-                8'b1000000? : begin
+                8'b1000000?, 8'b00000001 : begin
                 end
                 8'b1000010? : begin
                 end
@@ -819,7 +822,7 @@ module MyState (
                 end
                 8'b11001100 : begin
                 end
-                8'b??????1?, 8'b11111000, 8'b11100000, 8'b11000000, 8'b11010000, 8'b11111100 : begin
+                8'b??????1?, 8'b11111000, 8'b11100000, 8'b11000000, 8'b11010000, 8'b11111100, 8'b00000000 : begin
                   counter <= 12'h000;
                 end
                 default : begin
@@ -847,7 +850,7 @@ module MyState (
         end
         fsmPhase_enumDef_STRETCH : begin
           if(io_wantTick) begin
-            if(!when_I2CBertTop_l467) begin
+            if(!when_I2CBertTop_l474) begin
               counter <= (counter + 12'h001);
             end
           end
@@ -864,17 +867,17 @@ module MyState (
       end
       fsmPhase_enumDef_CONTROL : begin
         if(io_wantTick) begin
-          readWriteBit <= io_datain8rxNow[0];
           cmd7 <= io_datain8rxNow[7 : 1];
-          if(when_I2CBertTop_l317) begin
+          if(when_I2CBertTop_l318) begin
             casez(io_datain8rxNow)
-              8'b1000000? : begin
+              8'b1000000?, 8'b00000001 : begin
                 readWriteBit <= 1'b0;
               end
               8'b1000010? : begin
                 readWriteBit <= 1'b1;
               end
               8'b??????1?, 8'b11111001, 8'b11100001, 8'b11000001, 8'b11010001, 8'b11110001, 8'b11111101 : begin
+                readWriteBit <= io_datain8rxNow[0];
               end
               default : begin
                 readWriteBit <= 1'b1;
@@ -897,7 +900,8 @@ module MyState (
               8'b11001100 : begin
                 readWriteBit <= 1'b1;
               end
-              8'b??????1?, 8'b11111000, 8'b11100000, 8'b11000000, 8'b11010000, 8'b11111100 : begin
+              8'b??????1?, 8'b11111000, 8'b11100000, 8'b11000000, 8'b11010000, 8'b11111100, 8'b00000000 : begin
+                readWriteBit <= io_datain8rxNow[0];
               end
               default : begin
                 readWriteBit <= 1'b1;
@@ -913,8 +917,8 @@ module MyState (
               readWriteBit <= 1'b0;
             end
             8'b11100000 : begin
-              if(!when_I2CBertTop_l383) begin
-                if(when_I2CBertTop_l385) begin
+              if(!when_I2CBertTop_l386) begin
+                if(when_I2CBertTop_l388) begin
                   readWriteBit <= 1'b0;
                 end
               end
@@ -922,11 +926,14 @@ module MyState (
             8'b11111000 : begin
               readWriteBit <= 1'b0;
             end
+            8'b00000000 : begin
+              readWriteBit <= ((io_datain8rxNow == (~ len8)) ? 1'b0 : 1'b1);
+            end
             8'b11000000 : begin
               readWriteBit <= 1'b1;
             end
             8'b??????1? : begin
-              if(when_I2CBertTop_l406) begin
+              if(when_I2CBertTop_l413) begin
                 readWriteBit <= 1'b0;
               end
             end
@@ -942,7 +949,7 @@ module MyState (
               readWriteBit <= 1'b0;
             end
             8'b??????1? : begin
-              if(when_I2CBertTop_l453) begin
+              if(when_I2CBertTop_l460) begin
                 readWriteBit <= 1'b0;
               end
             end
@@ -1026,13 +1033,13 @@ module MyI2C (
   reg        [2:0]    fsm_bitCount;
   reg        [3:0]    fsm_stateReg;
   reg        [3:0]    fsm_stateNext;
-  wire                when_I2CBertTop_l691;
-  wire                when_I2CBertTop_l716;
-  wire                when_I2CBertTop_l720;
-  wire                when_I2CBertTop_l705;
-  wire                when_I2CBertTop_l739;
-  wire                when_I2CBertTop_l756;
-  wire                when_I2CBertTop_l767;
+  wire                when_I2CBertTop_l698;
+  wire                when_I2CBertTop_l723;
+  wire                when_I2CBertTop_l728;
+  wire                when_I2CBertTop_l712;
+  wire                when_I2CBertTop_l746;
+  wire                when_I2CBertTop_l763;
+  wire                when_I2CBertTop_l774;
   `ifndef SYNTHESIS
   reg [63:0] fsm_stateReg_string;
   reg [63:0] fsm_stateNext_string;
@@ -1092,7 +1099,7 @@ module MyI2C (
       fsm_enumDef_RECV : begin
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l716) begin
+        if(when_I2CBertTop_l723) begin
           sdaTx = 1'b1;
         end
       end
@@ -1120,8 +1127,8 @@ module MyI2C (
       fsm_enumDef_RECV : begin
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l716) begin
-          if(when_I2CBertTop_l720) begin
+        if(when_I2CBertTop_l723) begin
+          if(when_I2CBertTop_l728) begin
             sclTx = io_canStretch;
           end
         end
@@ -1149,8 +1156,8 @@ module MyI2C (
       fsm_enumDef_RECV : begin
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l716) begin
-          io_bus_sdaOut = (((! io_canNack) && (! io_canSend)) && (! io_canRecv));
+        if(when_I2CBertTop_l723) begin
+          io_bus_sdaOut = ((io_canNack && (! io_canSend)) && (! io_canRecv));
         end
       end
       fsm_enumDef_SEND : begin
@@ -1180,8 +1187,8 @@ module MyI2C (
       fsm_enumDef_RECV : begin
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l716) begin
-          if(when_I2CBertTop_l720) begin
+        if(when_I2CBertTop_l723) begin
+          if(when_I2CBertTop_l728) begin
             io_bus_sclOut = io_canStretch;
           end
         end
@@ -1212,8 +1219,8 @@ module MyI2C (
       end
       fsm_enumDef_ACKNACK : begin
         io_timerRun = 1'b1;
-        if(when_I2CBertTop_l716) begin
-          if(!when_I2CBertTop_l720) begin
+        if(when_I2CBertTop_l723) begin
+          if(!when_I2CBertTop_l728) begin
             if(sclEdge_rise) begin
               io_timerRun = 1'b0;
             end
@@ -1256,7 +1263,7 @@ module MyI2C (
       end
       fsm_enumDef_AUTOBAUD : begin
         if(sclEdge_rise) begin
-          if(when_I2CBertTop_l756) begin
+          if(when_I2CBertTop_l763) begin
             io_timerLoad = 1'b1;
           end
         end
@@ -1327,23 +1334,16 @@ module MyI2C (
       end
       fsm_enumDef_RECV : begin
         if(sclEdge_rise) begin
-          if(when_I2CBertTop_l691) begin
+          if(when_I2CBertTop_l698) begin
             io_wantTick = 1'b1;
           end
         end
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l716) begin
-          if(!when_I2CBertTop_l720) begin
-            if(sclEdge_rise) begin
-              io_wantTick = 1'b1;
-            end
-          end
-        end
       end
       fsm_enumDef_SEND : begin
         if(sclEdge_rise) begin
-          if(when_I2CBertTop_l705) begin
+          if(when_I2CBertTop_l712) begin
             io_wantTick = 1'b1;
           end
         end
@@ -1446,14 +1446,14 @@ module MyI2C (
       end
       fsm_enumDef_RECV : begin
         if(sclEdge_rise) begin
-          if(when_I2CBertTop_l691) begin
+          if(when_I2CBertTop_l698) begin
             fsm_stateNext = fsm_enumDef_ACKNACK;
           end
         end
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l716) begin
-          if(!when_I2CBertTop_l720) begin
+        if(when_I2CBertTop_l723) begin
+          if(!when_I2CBertTop_l728) begin
             if(sclEdge_rise) begin
               if(io_canSend) begin
                 fsm_stateNext = fsm_enumDef_SEND;
@@ -1470,13 +1470,13 @@ module MyI2C (
       end
       fsm_enumDef_SEND : begin
         if(sclEdge_rise) begin
-          if(when_I2CBertTop_l705) begin
+          if(when_I2CBertTop_l712) begin
             fsm_stateNext = fsm_enumDef_PRECHECK;
           end
         end
       end
       fsm_enumDef_PRECHECK : begin
-        if(when_I2CBertTop_l739) begin
+        if(when_I2CBertTop_l746) begin
           fsm_stateNext = fsm_enumDef_CHECK;
         end
       end
@@ -1491,7 +1491,7 @@ module MyI2C (
       end
       fsm_enumDef_AUTOBAUD : begin
         if(sclEdge_rise) begin
-          if(when_I2CBertTop_l756) begin
+          if(when_I2CBertTop_l763) begin
             fsm_stateNext = fsm_enumDef_ACKNACK;
           end
         end
@@ -1499,7 +1499,7 @@ module MyI2C (
       default : begin
       end
     endcase
-    if(when_I2CBertTop_l767) begin
+    if(when_I2CBertTop_l774) begin
       fsm_stateNext = fsm_enumDef_RESET;
     end
     if(io_timeoutError) begin
@@ -1513,13 +1513,13 @@ module MyI2C (
     end
   end
 
-  assign when_I2CBertTop_l691 = (fsm_bitCount == 3'b111);
-  assign when_I2CBertTop_l716 = (((! sclSignalNext) || sclEdge_rise) || io_canStretch);
-  assign when_I2CBertTop_l720 = ((! sclSignalNext) && io_canStretch);
-  assign when_I2CBertTop_l705 = (fsm_bitCount == 3'b111);
-  assign when_I2CBertTop_l739 = (! sclSignalNext);
-  assign when_I2CBertTop_l756 = (fsm_bitCount == 3'b111);
-  assign when_I2CBertTop_l767 = (isStop && (! sdaTx));
+  assign when_I2CBertTop_l698 = (fsm_bitCount == 3'b111);
+  assign when_I2CBertTop_l723 = (((! sclSignalNext) || sclEdge_rise) || io_canStretch);
+  assign when_I2CBertTop_l728 = ((! sclSignalNext) && io_canStretch);
+  assign when_I2CBertTop_l712 = (fsm_bitCount == 3'b111);
+  assign when_I2CBertTop_l746 = (! sclSignalNext);
+  assign when_I2CBertTop_l763 = (fsm_bitCount == 3'b111);
+  assign when_I2CBertTop_l774 = (isStop && (! sdaTx));
   always @(posedge clk) begin
     if(when_Utils_l1149) begin
       history_1 <= history_0;
@@ -1541,14 +1541,14 @@ module MyI2C (
       fsm_enumDef_RECV : begin
         if(sclEdge_rise) begin
           shifter <= shifterNow;
-          if(!when_I2CBertTop_l691) begin
+          if(!when_I2CBertTop_l698) begin
             fsm_bitCount <= (fsm_bitCount + 3'b001);
           end
         end
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l716) begin
-          if(!when_I2CBertTop_l720) begin
+        if(when_I2CBertTop_l723) begin
+          if(!when_I2CBertTop_l728) begin
             if(sclEdge_rise) begin
               fsm_bitCount <= 3'b000;
             end
@@ -1558,7 +1558,7 @@ module MyI2C (
       fsm_enumDef_SEND : begin
         if(sclEdge_rise) begin
           shifter <= {shifter[6 : 0],shifter[7]};
-          if(!when_I2CBertTop_l705) begin
+          if(!when_I2CBertTop_l712) begin
             fsm_bitCount <= (fsm_bitCount + 3'b001);
           end
         end
@@ -1569,7 +1569,7 @@ module MyI2C (
       end
       fsm_enumDef_AUTOBAUD : begin
         if(sclEdge_rise) begin
-          if(!when_I2CBertTop_l756) begin
+          if(!when_I2CBertTop_l763) begin
             fsm_bitCount <= (fsm_bitCount + 3'b001);
           end
         end
@@ -1608,7 +1608,7 @@ module Timer (
 );
 
   reg        [11:0]   endstop;
-  wire                when_I2CBertTop_l512;
+  wire                when_I2CBertTop_l519;
   reg        [11:0]   ticker_count;
   wire                ticker_sclTick;
   reg                 ticker_timeoutError;
@@ -1616,46 +1616,46 @@ module Timer (
   reg                 ticker_canPowerOnReset;
   wire                ticker_reset;
   reg        [2:0]    ticker_tickState;
-  wire                when_I2CBertTop_l538;
-  wire                when_I2CBertTop_l544;
-  wire                when_I2CBertTop_l547;
-  wire                when_I2CBertTop_l550;
+  wire                when_I2CBertTop_l545;
+  wire                when_I2CBertTop_l551;
+  wire                when_I2CBertTop_l554;
+  wire                when_I2CBertTop_l557;
 
-  assign when_I2CBertTop_l512 = (! rst_n);
+  assign when_I2CBertTop_l519 = (! rst_n);
   assign io_timerEndstop = endstop;
   assign ticker_sclTick = 1'b0;
   always @(*) begin
     ticker_timeoutError = 1'b0;
-    if(when_I2CBertTop_l547) begin
+    if(when_I2CBertTop_l554) begin
       ticker_timeoutError = 1'b1;
     end
   end
 
   always @(*) begin
     ticker_canStart = 1'b0;
-    if(when_I2CBertTop_l544) begin
+    if(when_I2CBertTop_l551) begin
       ticker_canStart = 1'b1;
     end
   end
 
   always @(*) begin
     ticker_canPowerOnReset = 1'b0;
-    if(when_I2CBertTop_l550) begin
+    if(when_I2CBertTop_l557) begin
       ticker_canPowerOnReset = 1'b1;
     end
   end
 
   assign ticker_reset = (! io_timerRun);
-  assign when_I2CBertTop_l538 = (ticker_tickState == 3'b101);
-  assign when_I2CBertTop_l544 = (ticker_count == 12'h012);
-  assign when_I2CBertTop_l547 = (ticker_count == 12'h03c);
-  assign when_I2CBertTop_l550 = (ticker_count == 12'h004);
+  assign when_I2CBertTop_l545 = (ticker_tickState == 3'b101);
+  assign when_I2CBertTop_l551 = (ticker_count == 12'h012);
+  assign when_I2CBertTop_l554 = (ticker_count == 12'h03c);
+  assign when_I2CBertTop_l557 = (ticker_count == 12'h004);
   assign io_timeoutError = ticker_timeoutError;
   assign io_sclTick = ticker_sclTick;
   assign io_canStart = ticker_canStart;
   assign io_canPowerOnReset = ticker_canPowerOnReset;
   always @(posedge clk) begin
-    if(when_I2CBertTop_l512) begin
+    if(when_I2CBertTop_l519) begin
       if(io_div12active) begin
         endstop <= io_div12;
       end else begin
@@ -1680,7 +1680,7 @@ module Timer (
       ticker_count <= 12'h000;
       ticker_tickState <= 3'b000;
     end else begin
-      if(when_I2CBertTop_l538) begin
+      if(when_I2CBertTop_l545) begin
         ticker_tickState <= 3'b000;
       end else begin
         ticker_tickState <= (ticker_tickState + 3'b001);
