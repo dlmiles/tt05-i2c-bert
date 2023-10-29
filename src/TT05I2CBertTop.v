@@ -454,9 +454,9 @@ module MyState (
               8'b11110000 : begin
                 alu_1_io_reset = 1'b1;
               end
-              8'b1100000? : begin
+              8'b1000000? : begin
               end
-              8'b1100010? : begin
+              8'b1000010? : begin
               end
               8'b11001000 : begin
               end
@@ -629,10 +629,10 @@ module MyState (
         if(io_wantTick) begin
           if(when_I2CBertTop_l317) begin
             casez(io_datain8rxNow)
-              8'b1100000? : begin
+              8'b1000000? : begin
                 fsmPhase_stateNext = fsmPhase_enumDef_RESET;
               end
-              8'b1100010? : begin
+              8'b1000010? : begin
                 fsmPhase_stateNext = fsmPhase_enumDef_RESET;
               end
               8'b??????1?, 8'b11111001, 8'b11100001, 8'b11000001, 8'b11010001, 8'b11110001, 8'b11111101 : begin
@@ -647,10 +647,10 @@ module MyState (
               8'b11110000 : begin
                 fsmPhase_stateNext = fsmPhase_enumDef_RESET;
               end
-              8'b1100000? : begin
+              8'b1000000? : begin
                 fsmPhase_stateNext = fsmPhase_enumDef_RESET;
               end
-              8'b1100010? : begin
+              8'b1000010? : begin
                 fsmPhase_stateNext = fsmPhase_enumDef_RESET;
               end
               8'b11001000 : begin
@@ -796,9 +796,9 @@ module MyState (
           if(io_wantTick) begin
             if(when_I2CBertTop_l317) begin
               casez(io_datain8rxNow)
-                8'b1100000? : begin
+                8'b1000000? : begin
                 end
-                8'b1100010? : begin
+                8'b1000010? : begin
                 end
                 8'b??????1?, 8'b11111001, 8'b11100001, 8'b11000001, 8'b11010001, 8'b11110001, 8'b11111101 : begin
                   counter <= 12'h000;
@@ -811,9 +811,9 @@ module MyState (
                 8'b11110000 : begin
                   len8 <= 8'h00;
                 end
-                8'b1100000? : begin
+                8'b1000000? : begin
                 end
-                8'b1100010? : begin
+                8'b1000010? : begin
                 end
                 8'b11001000 : begin
                 end
@@ -868,10 +868,10 @@ module MyState (
           cmd7 <= io_datain8rxNow[7 : 1];
           if(when_I2CBertTop_l317) begin
             casez(io_datain8rxNow)
-              8'b1100000? : begin
+              8'b1000000? : begin
                 readWriteBit <= 1'b0;
               end
-              8'b1100010? : begin
+              8'b1000010? : begin
                 readWriteBit <= 1'b1;
               end
               8'b??????1?, 8'b11111001, 8'b11100001, 8'b11000001, 8'b11010001, 8'b11110001, 8'b11111101 : begin
@@ -885,10 +885,10 @@ module MyState (
               8'b11110000 : begin
                 readWriteBit <= 1'b0;
               end
-              8'b1100000? : begin
+              8'b1000000? : begin
                 readWriteBit <= 1'b0;
               end
-              8'b1100010? : begin
+              8'b1000010? : begin
                 readWriteBit <= 1'b1;
               end
               8'b11001000 : begin
