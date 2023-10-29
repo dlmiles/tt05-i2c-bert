@@ -498,8 +498,8 @@ async def test_i2c_bert(dut):
     report_resolvable(dut, depth=depth, filter=exclude_re_path)
 
     signal_accessor_uio_in = SignalAccessor(dut, 'uio_in')
-    signal_accessor_scl = signal_accessor_uio_in.register(SCL_BITID)	# dut.
-    signal_accessor_sda = signal_accessor_uio_in.register(SDA_BITID)	# dut.
+    signal_accessor_scl = signal_accessor_uio_in.register('uio_in:SCL', SCL_BITID)	# dut.
+    signal_accessor_sda = signal_accessor_uio_in.register('uio_in:SDA', SDA_BITID)	# dut.
 
     #############################################################################################
 
@@ -518,8 +518,18 @@ async def test_i2c_bert(dut):
     ctrl.set_sda_scl(True, True)
     await ClockCycles(dut.clk, CYCLES_PER_BIT)
 
+    # PREMABLE
+    ctrl.scl = False
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+    ctrl.scl = True
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+    ctrl.scl = False
+    await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+    ctrl.scl = True
+    await ClockCycles(dut.clk, CYCLES_PER_BIT)
+
     # START
-    ctrl.set_sda_scl(False, True)	# START transition (setup
+    ctrl.set_sda_scl(False, True)	# START transition (setup)
     await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
     if HALF_EDGE:
         await FallingEdge(dut.clk)
@@ -643,20 +653,180 @@ async def test_i2c_bert(dut):
 
     ctrl.idle()
 
+    await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
 
     ## cooked mode
 
-    #ctrl.start()
+    await ctrl.send_start()
 
-    #ctrl.send(0x00)
-    #nack = ctrl.recv_ack()
+    await ctrl.send_data(0x00)
+    nack = await ctrl.recv_ack()
 
-    #ctrl.send(0xff)
-    #nack = ctrl.recv_ack()
+    await ctrl.send_data(0xff)
+    nack = await ctrl.recv_ack()
 
-    #ctrl.stop()
+    await ctrl.send_stop()
 
-    #ctrl.idle()
+    ctrl.idle()
+
+    await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    if run_this_test(True):
+        debug(dut, '200_RESET')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xf0)
+        nack = await ctrl.recv_ack()
+        assert not nack	# ack
+
+        await ctrl.send_stop()
+
+        ctrl.idle()
+
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    if run_this_test(True):
+        debug(dut, '210_ACK_wr')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xc0)
+        nack = await ctrl.recv_ack()
+        assert not nack	# ack
+
+        await ctrl.send_stop()
+
+        ctrl.idle()
+
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    if run_this_test(True):
+        debug(dut, '220_ACK_rd')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xc1)
+        nack = await ctrl.recv_ack()
+        assert not nack	# ack
+
+        await ctrl.send_stop()
+
+        ctrl.idle()
+
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    if run_this_test(True):
+        debug(dut, '230_NACK_wr')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0x40)
+        nack = await ctrl.recv_ack()
+        #assert nack	# NACK
+
+        await ctrl.send_stop()
+
+        ctrl.idle()
+
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    if run_this_test(True):
+        debug(dut, '240_NACK_rd')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0x41)
+        nack = await ctrl.recv_ack()
+        #assert nack	# NACK
+
+        await ctrl.send_stop()
+
+        ctrl.idle()
+
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    if run_this_test(True):
+        debug(dut, '270_AUTOBAUD')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xcc)
+        nack = await ctrl.recv_ack()
+        assert not nack	# ack
+
+        await ctrl.send_stop()
+
+        ctrl.idle()
+
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    if run_this_test(True):
+        debug(dut, '280_STRETCH')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xc8)
+        nack = await ctrl.recv_ack()
+        assert not nack	# ack
+
+        await ctrl.send_stop()
+
+        ctrl.idle()
+
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    if run_this_test(True):
+        debug(dut, '300_GETLATCH')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xf1)
+        nack = await ctrl.recv_ack()
+        assert not nack	# ack
+
+        data = await ctrl.recv_data()
+        dut._log.info("LATCH[0] = {str(data):x}")
+        await ctrl.send_ack()
+
+        data = await ctrl.recv_data()
+        dut._log.info("LATCH[1] = {str(data):x}")
+        await ctrl.send_ack()
+
+        data = await ctrl.recv_data()
+        dut._log.info("LATCH[2] = {str(data):x}")
+        await ctrl.send_ack()
+
+        data = await ctrl.recv_data()
+        dut._log.info("LATCH[3] = {str(data):x}")
+        await ctrl.send_ack()
+
+        #assert
+        await ctrl.check_recv_is_idle(CYCLES_PER_HALFBIT)
+
+        await ctrl.send_stop()
+
+        ctrl.idle()
+
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
 
     await ClockCycles(dut.clk, 256)
 
