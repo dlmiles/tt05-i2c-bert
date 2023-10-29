@@ -60,6 +60,8 @@ module tt_um_dlmiles_tt05_i2c_bert (
     wire debug_SCL_pp;	// bus view of push-pull
     wire debug_SCL_og;	// open-drain is good (should always be true)
     wire debug_SCL_pg;	// push-pull is good (should always be true)
+    wire debug_SCL_os;	// open-drain line state view (X is error, pull-up when no driver)
+    wire debug_SCL_ps;	// push-pull line state view (X is error, Z is no driver)
 
     reg  debug_SDA_ie;	// input-enable (peer is driving)
     wire debug_SDA_od;	// bus view of open-drain
@@ -68,6 +70,11 @@ module tt_um_dlmiles_tt05_i2c_bert (
     //  the bus conditions never enter an illegal state (both ends driving).
     wire debug_SDA_og;	// open-drain is good (should always be true)
     wire debug_SDA_pg;	// push-pull is good (should always be true)
+    wire debug_SDA_os;	// open-drain line state view (X is error, pull-up when no driver)
+    wire debug_SDA_ps;	// push-pull line state view (X is error, Z is no driver)
+
+    wire simulation_z;
+    assign simulation_z = 1'bz;
 `endif
 
     TT05I2CBertTop i2c_bert (
@@ -77,12 +84,18 @@ module tt_um_dlmiles_tt05_i2c_bert (
         .debug_SCL_pp  (debug_SCL_pp),		//o
         .debug_SCL_og  (debug_SCL_og),		//o
         .debug_SCL_pg  (debug_SCL_pg),		//o
+        .debug_SCL_os  (debug_SCL_os),		//o
+        .debug_SCL_ps  (debug_SCL_ps),		//o
 
         .debug_SDA_ie  (debug_SDA_ie),		//i
         .debug_SDA_od  (debug_SDA_od),		//o
         .debug_SDA_pp  (debug_SDA_pp),		//o
         .debug_SDA_og  (debug_SDA_og),		//o
         .debug_SDA_pg  (debug_SDA_pg),		//o
+        .debug_SDA_os  (debug_SDA_os),		//o
+        .debug_SDA_ps  (debug_SDA_ps),		//o
+
+        .simulation_z  (simulation_z),          //i
 `endif
 
         .clk        (clk),              //i
