@@ -10,16 +10,21 @@ module TT05I2CBertTop (
   output reg [7:0]    uio_out /* verilator public */ ,
   input      [7:0]    uio_in /* verilator public */ ,
   output reg [7:0]    uio_oe /* verilator public */ ,
+  input               debug_SCL_ie /* verilator public */ ,
   output              debug_SCL_od /* verilator public */ ,
   output              debug_SCL_pp /* verilator public */ ,
-  input               debug_SCL_ie /* verilator public */ ,
   output              debug_SCL_og /* verilator public */ ,
   output              debug_SCL_pg /* verilator public */ ,
+  output              debug_SCL_os /* verilator public */ ,
+  output              debug_SCL_ps /* verilator public */ ,
+  input               debug_SDA_ie /* verilator public */ ,
   output              debug_SDA_od /* verilator public */ ,
   output              debug_SDA_pp /* verilator public */ ,
-  input               debug_SDA_ie /* verilator public */ ,
   output              debug_SDA_og /* verilator public */ ,
   output              debug_SDA_pg /* verilator public */ ,
+  output              debug_SDA_os /* verilator public */ ,
+  output              debug_SDA_ps /* verilator public */ ,
+  input               simulation_z /* verilator public */ ,
   input      [31:0]   latched /* verilator public */ ,
   input               rst_n,
   input               clk
@@ -34,12 +39,14 @@ module TT05I2CBertTop (
   wire                timer_1_io_timeoutError;
   wire                timer_1_io_canPowerOnReset;
   wire                timer_1_io_canStart;
+  wire       [11:0]   timer_1_io_timerEndstop;
   wire                i2c_io_bus_sclOut;
   wire                i2c_io_bus_sclOe;
   wire                i2c_io_bus_sdaOut;
   wire                i2c_io_bus_sdaOe;
   wire                i2c_io_sdaSignal;
   wire                i2c_io_timerRun;
+  wire                i2c_io_timerLoad;
   wire                i2c_io_wantReset;
   wire                i2c_io_wantStart;
   wire                i2c_io_wantTick;
@@ -47,7 +54,11 @@ module TT05I2CBertTop (
   wire       [7:0]    i2c_io_data8rxNow;
   wire                myState_1_io_canSend;
   wire                myState_1_io_canRecv;
+  wire                myState_1_io_canNack;
+  wire                myState_1_io_canStretch;
   wire       [7:0]    myState_1_io_data8tx;
+  wire                myState_1_io_timerLoadH;
+  wire                myState_1_io_timerLoadL;
   wire                powerOnSenseCaptured_Q;
   wire                powerOnSense_Q;
   wire                _zz_debug_SCL_od;
@@ -62,16 +73,20 @@ module TT05I2CBertTop (
   wire       [11:0]   div12;
 
   Timer timer_1 (
-    .io_sclTick         (timer_1_io_sclTick        ), //o
-    .io_timeoutError    (timer_1_io_timeoutError   ), //o
-    .io_timerRun        (timer_1_io_timerRun       ), //i
-    .io_timerLoad       (1'b0                      ), //i
-    .io_canPowerOnReset (timer_1_io_canPowerOnReset), //o
-    .io_canStart        (timer_1_io_canStart       ), //o
-    .io_div12active     (div12active               ), //i
-    .io_div12           (div12[11:0]               ), //i
-    .rst_n              (rst_n                     ), //i
-    .clk                (clk                       )  //i
+    .io_sclTick         (timer_1_io_sclTick           ), //o
+    .io_timeoutError    (timer_1_io_timeoutError      ), //o
+    .io_timerRun        (timer_1_io_timerRun          ), //i
+    .io_timerLoad       (i2c_io_timerLoad             ), //i
+    .io_canPowerOnReset (timer_1_io_canPowerOnReset   ), //o
+    .io_canStart        (timer_1_io_canStart          ), //o
+    .io_div12active     (div12active                  ), //i
+    .io_div12           (div12[11:0]                  ), //i
+    .io_timerLoadH      (myState_1_io_timerLoadH      ), //i
+    .io_timerLoadL      (myState_1_io_timerLoadL      ), //i
+    .io_timerData       (i2c_io_data8rx[7:0]          ), //i
+    .io_timerEndstop    (timer_1_io_timerEndstop[11:0]), //o
+    .rst_n              (rst_n                        ), //i
+    .clk                (clk                          )  //i
   );
   MyI2C i2c (
     .io_bus_sclOut   (i2c_io_bus_sclOut        ), //o
@@ -84,8 +99,11 @@ module TT05I2CBertTop (
     .io_sclTick      (timer_1_io_sclTick       ), //i
     .io_timeoutError (timer_1_io_timeoutError  ), //i
     .io_timerRun     (i2c_io_timerRun          ), //o
+    .io_timerLoad    (i2c_io_timerLoad         ), //o
     .io_canRecv      (myState_1_io_canRecv     ), //i
     .io_canSend      (myState_1_io_canSend     ), //i
+    .io_canNack      (myState_1_io_canNack     ), //i
+    .io_canStretch   (myState_1_io_canStretch  ), //i
     .io_wantReset    (i2c_io_wantReset         ), //o
     .io_wantStart    (i2c_io_wantStart         ), //o
     .io_wantTick     (i2c_io_wantTick          ), //o
@@ -98,17 +116,24 @@ module TT05I2CBertTop (
     .rst_n           (rst_n                    )  //i
   );
   MyState myState_1 (
-    .io_wantReset    (i2c_io_wantReset         ), //i
-    .io_wantStart    (i2c_io_wantStart         ), //i
-    .io_wantTick     (i2c_io_wantTick          ), //i
-    .io_canSend      (myState_1_io_canSend     ), //o
-    .io_canRecv      (myState_1_io_canRecv     ), //o
-    .io_datain8rx    (i2c_io_data8rx[7:0]      ), //i
-    .io_datain8rxNow (i2c_io_data8rxNow[7:0]   ), //i
-    .io_data8tx      (myState_1_io_data8tx[7:0]), //o
-    .io_latched      (latched[31:0]            ), //i
-    .clk             (clk                      ), //i
-    .rst_n           (rst_n                    )  //i
+    .io_wantReset    (i2c_io_wantReset             ), //i
+    .io_wantStart    (i2c_io_wantStart             ), //i
+    .io_wantTick     (i2c_io_wantTick              ), //i
+    .io_canSend      (myState_1_io_canSend         ), //o
+    .io_canRecv      (myState_1_io_canRecv         ), //o
+    .io_canNack      (myState_1_io_canNack         ), //o
+    .io_canStretch   (myState_1_io_canStretch      ), //o
+    .io_datain8rx    (i2c_io_data8rx[7:0]          ), //i
+    .io_datain8rxNow (i2c_io_data8rxNow[7:0]       ), //i
+    .io_data8tx      (myState_1_io_data8tx[7:0]    ), //o
+    .io_latched      (latched[31:0]                ), //i
+    .io_timerLoadH   (myState_1_io_timerLoadH      ), //o
+    .io_timerLoadL   (myState_1_io_timerLoadL      ), //o
+    .io_timerEndstop (timer_1_io_timerEndstop[11:0]), //i
+    .io_cfgSclMode   (sclMode                      ), //i
+    .io_cfgPushPull  (pushPullMode                 ), //i
+    .clk             (clk                          ), //i
+    .rst_n           (rst_n                        )  //i
   );
   (* keep , syn_keep *) sky130_fd_sc_hd__dlrtp powerOnSenseCaptured (
     .D       (1'b1                      ), //i
@@ -142,17 +167,21 @@ module TT05I2CBertTop (
   assign _zz_debug_SCL_od = uio_out[2];
   assign _zz_debug_SCL_od_1 = uio_oe[2];
   assign _zz_debug_SCL_od_2 = uio_in[2];
-  assign debug_SCL_od = (_zz_debug_SCL_od_1 ? _zz_debug_SCL_od : ((debug_SCL_ie && (! _zz_debug_SCL_od_2)) ? _zz_debug_SCL_od_2 : 1'bx));
-  assign debug_SCL_og = ((_zz_debug_SCL_od_1 && _zz_debug_SCL_od) ? 1'b0 : ((debug_SCL_ie && _zz_debug_SCL_od_2) ? 1'b0 : ((_zz_debug_SCL_od_1 && (! _zz_debug_SCL_od)) ? 1'b1 : ((debug_SCL_ie && (! _zz_debug_SCL_od_2)) ? 1'b1 : 1'bx))));
-  assign debug_SCL_pp = (_zz_debug_SCL_od_1 ? _zz_debug_SCL_od : (debug_SCL_ie ? _zz_debug_SCL_od_2 : 1'bx));
-  assign debug_SCL_pg = ((_zz_debug_SCL_od_1 && debug_SCL_ie) ? 1'b0 : (_zz_debug_SCL_od_1 ? 1'b1 : (debug_SCL_ie ? 1'b1 : (((! debug_SCL_ie) && (! _zz_debug_SCL_od_2)) ? 1'b1 : 1'bx))));
+  assign debug_SCL_od = (_zz_debug_SCL_od_1 ? _zz_debug_SCL_od : ((debug_SCL_ie && (! _zz_debug_SCL_od_2)) ? _zz_debug_SCL_od_2 : simulation_z));
+  assign debug_SCL_og = ((_zz_debug_SCL_od_1 && _zz_debug_SCL_od) ? 1'b0 : ((debug_SCL_ie && _zz_debug_SCL_od_2) ? 1'b0 : ((_zz_debug_SCL_od_1 && (! _zz_debug_SCL_od)) ? 1'b1 : ((debug_SCL_ie && (! _zz_debug_SCL_od_2)) ? 1'b1 : 1'b1))));
+  assign debug_SCL_os = ((_zz_debug_SCL_od_1 && debug_SDA_ie) ? 1'bx : (_zz_debug_SCL_od_1 ? _zz_debug_SCL_od : (debug_SDA_ie ? _zz_debug_SCL_od_2 : 1'b1)));
+  assign debug_SCL_pp = (_zz_debug_SCL_od_1 ? _zz_debug_SCL_od : (debug_SCL_ie ? _zz_debug_SCL_od_2 : simulation_z));
+  assign debug_SCL_pg = ((_zz_debug_SCL_od_1 && debug_SCL_ie) ? 1'b0 : (_zz_debug_SCL_od_1 ? 1'b1 : (debug_SCL_ie ? 1'b1 : (((! debug_SCL_ie) && (! _zz_debug_SCL_od_2)) ? 1'b1 : 1'b1))));
+  assign debug_SCL_ps = ((_zz_debug_SCL_od_1 && debug_SCL_ie) ? 1'bx : (_zz_debug_SCL_od_1 ? _zz_debug_SCL_od : (debug_SCL_ie ? _zz_debug_SCL_od_2 : simulation_z)));
   assign _zz_debug_SDA_od = uio_out[3];
   assign _zz_debug_SDA_od_1 = uio_oe[3];
   assign _zz_debug_SDA_od_2 = uio_in[3];
-  assign debug_SDA_od = (_zz_debug_SDA_od_1 ? _zz_debug_SDA_od : ((debug_SDA_ie && (! _zz_debug_SDA_od_2)) ? _zz_debug_SDA_od_2 : 1'bx));
-  assign debug_SDA_og = ((_zz_debug_SDA_od_1 && _zz_debug_SDA_od) ? 1'b0 : ((debug_SDA_ie && _zz_debug_SDA_od_2) ? 1'b0 : ((_zz_debug_SDA_od_1 && (! _zz_debug_SDA_od)) ? 1'b1 : ((debug_SDA_ie && (! _zz_debug_SDA_od_2)) ? 1'b1 : 1'bx))));
-  assign debug_SDA_pp = (_zz_debug_SDA_od_1 ? _zz_debug_SDA_od : (debug_SDA_ie ? _zz_debug_SDA_od_2 : 1'bx));
-  assign debug_SDA_pg = ((_zz_debug_SDA_od_1 && debug_SDA_ie) ? 1'b0 : (_zz_debug_SDA_od_1 ? 1'b1 : (debug_SDA_ie ? 1'b1 : (((! debug_SDA_ie) && (! _zz_debug_SDA_od_2)) ? 1'b1 : 1'bx))));
+  assign debug_SDA_od = (_zz_debug_SDA_od_1 ? _zz_debug_SDA_od : ((debug_SDA_ie && (! _zz_debug_SDA_od_2)) ? _zz_debug_SDA_od_2 : simulation_z));
+  assign debug_SDA_og = ((_zz_debug_SDA_od_1 && _zz_debug_SDA_od) ? 1'b0 : ((debug_SDA_ie && _zz_debug_SDA_od_2) ? 1'b0 : ((_zz_debug_SDA_od_1 && (! _zz_debug_SDA_od)) ? 1'b1 : ((debug_SDA_ie && (! _zz_debug_SDA_od_2)) ? 1'b1 : 1'b1))));
+  assign debug_SDA_os = ((_zz_debug_SDA_od_1 && debug_SDA_ie) ? 1'bx : (_zz_debug_SDA_od_1 ? _zz_debug_SDA_od : (debug_SDA_ie ? _zz_debug_SDA_od_2 : 1'b1)));
+  assign debug_SDA_pp = (_zz_debug_SDA_od_1 ? _zz_debug_SDA_od : (debug_SDA_ie ? _zz_debug_SDA_od_2 : simulation_z));
+  assign debug_SDA_pg = ((_zz_debug_SDA_od_1 && debug_SDA_ie) ? 1'b0 : (_zz_debug_SDA_od_1 ? 1'b1 : (debug_SDA_ie ? 1'b1 : (((! debug_SDA_ie) && (! _zz_debug_SDA_od_2)) ? 1'b1 : 1'b1))));
+  assign debug_SDA_ps = ((_zz_debug_SDA_od_1 && debug_SDA_ie) ? 1'bx : (_zz_debug_SDA_od_1 ? _zz_debug_SDA_od : (debug_SDA_ie ? _zz_debug_SDA_od_2 : simulation_z)));
   assign pushPullMode = latched[2];
   assign sclMode = latched[1];
   assign div12active = latched[3];
@@ -171,10 +200,17 @@ module MyState (
   input               io_wantTick,
   output reg          io_canSend,
   output reg          io_canRecv,
+  output reg          io_canNack,
+  output reg          io_canStretch,
   input      [7:0]    io_datain8rx,
   input      [7:0]    io_datain8rxNow,
   output reg [7:0]    io_data8tx,
   input      [31:0]   io_latched,
+  output reg          io_timerLoadH,
+  output reg          io_timerLoadL,
+  input      [11:0]   io_timerEndstop,
+  input               io_cfgSclMode,
+  input               io_cfgPushPull,
   input               clk,
   input               rst_n
 );
@@ -183,11 +219,16 @@ module MyState (
   localparam fsmPhase_enumDef_CONTROL = 3'd2;
   localparam fsmPhase_enumDef_RECV = 3'd3;
   localparam fsmPhase_enumDef_SEND = 3'd4;
+  localparam fsmPhase_enumDef_STRETCH = 3'd5;
 
   wire       [1:0]    alu_1_io_op;
+  reg        [0:0]    alu_1_io_op2;
   reg                 alu_1_io_reset;
   reg                 alu_1_io_en;
   wire       [7:0]    alu_1_io_acc;
+  wire       [2:0]    _zz_io_op2;
+  wire       [7:0]    _zz__zz_io_data8tx;
+  wire       [3:0]    _zz__zz_io_data8tx_1;
   reg                 readWriteBit;
   reg        [6:0]    cmd7;
   reg        [7:0]    cmd8;
@@ -200,36 +241,36 @@ module MyState (
   wire                fsmPhase_wantKill;
   reg        [2:0]    fsmPhase_stateReg;
   reg        [2:0]    fsmPhase_stateNext;
-  wire                when_I2CBertTop_l253;
-  wire                when_I2CBertTop_l254;
-  wire                when_I2CBertTop_l258;
-  wire                when_I2CBertTop_l266;
-  wire                when_I2CBertTop_l270;
-  wire                when_I2CBertTop_l274;
-  wire                when_I2CBertTop_l278;
-  wire                when_I2CBertTop_l294;
-  wire                when_I2CBertTop_l295;
-  wire                when_I2CBertTop_l296;
-  wire                when_I2CBertTop_l313;
-  wire                when_I2CBertTop_l316;
-  wire                when_I2CBertTop_l319;
-  wire       [1:0]    switch_Misc_l226;
+  wire                when_I2CBertTop_l317;
+  wire                when_I2CBertTop_l383;
+  wire                when_I2CBertTop_l385;
+  wire                when_I2CBertTop_l406;
+  wire       [0:0]    switch_Misc_l226;
   reg        [7:0]    _zz_io_data8tx;
-  wire                when_I2CBertTop_l321;
+  reg        [7:0]    _zz_io_data8tx_1;
+  wire       [1:0]    switch_Misc_l226_1;
+  reg        [7:0]    _zz_io_data8tx_2;
+  wire                when_I2CBertTop_l453;
+  wire                when_I2CBertTop_l467;
+  wire                when_I2CBertTop_l468;
   `ifndef SYNTHESIS
   reg [55:0] fsmPhase_stateReg_string;
   reg [55:0] fsmPhase_stateNext_string;
   `endif
 
 
+  assign _zz_io_op2 = 3'b100;
+  assign _zz__zz_io_data8tx_1 = io_timerEndstop[11 : 8];
+  assign _zz__zz_io_data8tx = {4'd0, _zz__zz_io_data8tx_1};
   ALU alu_1 (
-    .io_acc   (alu_1_io_acc[7:0]), //o
-    .io_opand (io_datain8rx[7:0]), //i
-    .io_op    (alu_1_io_op[1:0] ), //i
-    .io_reset (alu_1_io_reset   ), //i
-    .io_en    (alu_1_io_en      ), //i
-    .clk      (clk              ), //i
-    .rst_n    (rst_n            )  //i
+    .io_acc   (alu_1_io_acc[7:0]   ), //o
+    .io_opand (io_datain8rxNow[7:0]), //i
+    .io_op    (alu_1_io_op[1:0]    ), //i
+    .io_op2   (alu_1_io_op2        ), //i
+    .io_reset (alu_1_io_reset      ), //i
+    .io_en    (alu_1_io_en         ), //i
+    .clk      (clk                 ), //i
+    .rst_n    (rst_n               )  //i
   );
   `ifndef SYNTHESIS
   always @(*) begin
@@ -239,6 +280,7 @@ module MyState (
       fsmPhase_enumDef_CONTROL : fsmPhase_stateReg_string = "CONTROL";
       fsmPhase_enumDef_RECV : fsmPhase_stateReg_string = "RECV   ";
       fsmPhase_enumDef_SEND : fsmPhase_stateReg_string = "SEND   ";
+      fsmPhase_enumDef_STRETCH : fsmPhase_stateReg_string = "STRETCH";
       default : fsmPhase_stateReg_string = "???????";
     endcase
   end
@@ -249,6 +291,7 @@ module MyState (
       fsmPhase_enumDef_CONTROL : fsmPhase_stateNext_string = "CONTROL";
       fsmPhase_enumDef_RECV : fsmPhase_stateNext_string = "RECV   ";
       fsmPhase_enumDef_SEND : fsmPhase_stateNext_string = "SEND   ";
+      fsmPhase_enumDef_STRETCH : fsmPhase_stateNext_string = "STRETCH";
       default : fsmPhase_stateNext_string = "???????";
     endcase
   end
@@ -265,6 +308,9 @@ module MyState (
       end
       fsmPhase_enumDef_SEND : begin
         io_canSend = 1'b1;
+      end
+      fsmPhase_enumDef_STRETCH : begin
+        io_canSend = (readWriteBit == 1'b1);
       end
       default : begin
       end
@@ -284,6 +330,107 @@ module MyState (
       end
       fsmPhase_enumDef_SEND : begin
       end
+      fsmPhase_enumDef_STRETCH : begin
+        io_canRecv = (readWriteBit == 1'b0);
+      end
+      default : begin
+      end
+    endcase
+  end
+
+  always @(*) begin
+    io_canNack = 1'b1;
+    case(fsmPhase_stateReg)
+      fsmPhase_enumDef_RESET : begin
+        io_canNack = readWriteBit;
+      end
+      fsmPhase_enumDef_CONTROL : begin
+      end
+      fsmPhase_enumDef_RECV : begin
+      end
+      fsmPhase_enumDef_SEND : begin
+      end
+      fsmPhase_enumDef_STRETCH : begin
+      end
+      default : begin
+      end
+    endcase
+  end
+
+  always @(*) begin
+    io_canStretch = 1'b0;
+    case(fsmPhase_stateReg)
+      fsmPhase_enumDef_RESET : begin
+      end
+      fsmPhase_enumDef_CONTROL : begin
+      end
+      fsmPhase_enumDef_RECV : begin
+      end
+      fsmPhase_enumDef_SEND : begin
+      end
+      fsmPhase_enumDef_STRETCH : begin
+        io_canStretch = 1'b1;
+      end
+      default : begin
+      end
+    endcase
+  end
+
+  always @(*) begin
+    io_timerLoadH = 1'b0;
+    case(fsmPhase_stateReg)
+      fsmPhase_enumDef_RESET : begin
+      end
+      fsmPhase_enumDef_CONTROL : begin
+      end
+      fsmPhase_enumDef_RECV : begin
+        if(io_wantTick) begin
+          casez(cmd8)
+            8'b11100000 : begin
+              if(when_I2CBertTop_l383) begin
+                io_timerLoadH = 1'b1;
+              end
+            end
+            default : begin
+            end
+          endcase
+        end
+      end
+      fsmPhase_enumDef_SEND : begin
+      end
+      fsmPhase_enumDef_STRETCH : begin
+      end
+      default : begin
+      end
+    endcase
+  end
+
+  always @(*) begin
+    io_timerLoadL = 1'b0;
+    case(fsmPhase_stateReg)
+      fsmPhase_enumDef_RESET : begin
+      end
+      fsmPhase_enumDef_CONTROL : begin
+      end
+      fsmPhase_enumDef_RECV : begin
+        if(io_wantTick) begin
+          casez(cmd8)
+            8'b11100000 : begin
+              if(!when_I2CBertTop_l383) begin
+                if(when_I2CBertTop_l385) begin
+                  io_timerLoadL = 1'b1;
+                end
+              end
+            end
+            default : begin
+            end
+          endcase
+        end
+      end
+      fsmPhase_enumDef_SEND : begin
+      end
+      fsmPhase_enumDef_STRETCH : begin
+      end
       default : begin
       end
     endcase
@@ -302,24 +449,32 @@ module MyState (
       end
       fsmPhase_enumDef_CONTROL : begin
         if(io_wantTick) begin
-          if(when_I2CBertTop_l253) begin
-            if(when_I2CBertTop_l254) begin
-              alu_1_io_reset = 1'b1;
-            end
-          end else begin
-            if(when_I2CBertTop_l266) begin
-              alu_1_io_reset = 1'b1;
-            end else begin
-              if(when_I2CBertTop_l270) begin
+          if(!when_I2CBertTop_l317) begin
+            casez(io_datain8rxNow)
+              8'b11110000 : begin
                 alu_1_io_reset = 1'b1;
               end
-            end
+              8'b1100000? : begin
+              end
+              8'b1100010? : begin
+              end
+              8'b11001000 : begin
+              end
+              8'b11001100 : begin
+              end
+              8'b??????1?, 8'b11111000, 8'b11100000, 8'b11000000, 8'b11010000, 8'b11111100 : begin
+              end
+              default : begin
+              end
+            endcase
           end
         end
       end
       fsmPhase_enumDef_RECV : begin
       end
       fsmPhase_enumDef_SEND : begin
+      end
+      fsmPhase_enumDef_STRETCH : begin
       end
       default : begin
       end
@@ -332,35 +487,58 @@ module MyState (
       fsmPhase_enumDef_RESET : begin
       end
       fsmPhase_enumDef_CONTROL : begin
-        if(io_wantTick) begin
-          if(!when_I2CBertTop_l253) begin
-            if(!when_I2CBertTop_l266) begin
-              if(!when_I2CBertTop_l270) begin
-                if(when_I2CBertTop_l274) begin
-                  alu_1_io_en = 1'b1;
-                end else begin
-                  if(when_I2CBertTop_l278) begin
-                    alu_1_io_en = 1'b1;
-                  end
-                end
-              end
-            end
-          end
-        end
       end
       fsmPhase_enumDef_RECV : begin
         if(io_wantTick) begin
-          alu_1_io_en = cmd8[3];
+          casez(cmd8)
+            8'b11111000 : begin
+              alu_1_io_en = 1'b1;
+            end
+            8'b??????1? : begin
+              alu_1_io_en = 1'b1;
+            end
+            default : begin
+            end
+          endcase
         end
       end
       fsmPhase_enumDef_SEND : begin
+      end
+      fsmPhase_enumDef_STRETCH : begin
       end
       default : begin
       end
     endcase
   end
 
-  assign alu_1_io_op = cmd8[2 : 1];
+  assign alu_1_io_op = cmd8[3 : 2];
+  always @(*) begin
+    alu_1_io_op2 = 1'b0;
+    case(fsmPhase_stateReg)
+      fsmPhase_enumDef_RESET : begin
+      end
+      fsmPhase_enumDef_CONTROL : begin
+      end
+      fsmPhase_enumDef_RECV : begin
+        if(io_wantTick) begin
+          casez(cmd8)
+            8'b11111000 : begin
+              alu_1_io_op2 = _zz_io_op2[2];
+            end
+            default : begin
+            end
+          endcase
+        end
+      end
+      fsmPhase_enumDef_SEND : begin
+      end
+      fsmPhase_enumDef_STRETCH : begin
+      end
+      default : begin
+      end
+    endcase
+  end
+
   assign muxDataOut8Alu = 1'b0;
   always @(*) begin
     io_data8tx = (muxDataOut8Alu ? alu_1_io_acc : io_datain8rx);
@@ -373,20 +551,34 @@ module MyState (
       end
       fsmPhase_enumDef_SEND : begin
         if(io_wantTick) begin
-          if(!when_I2CBertTop_l313) begin
-            if(when_I2CBertTop_l316) begin
+          casez(cmd8)
+            8'b11111001 : begin
               io_data8tx = alu_1_io_acc;
-            end else begin
-              if(when_I2CBertTop_l319) begin
-                io_data8tx = len8;
-              end else begin
-                if(when_I2CBertTop_l321) begin
-                  io_data8tx = _zz_io_data8tx;
-                end
-              end
             end
-          end
+            8'b11100001 : begin
+              io_data8tx = _zz_io_data8tx;
+            end
+            8'b11000001 : begin
+              io_data8tx = _zz_io_data8tx_1;
+            end
+            8'b11010001 : begin
+              io_data8tx = len8;
+            end
+            8'b11111101 : begin
+              io_data8tx = alu_1_io_acc;
+            end
+            8'b11110001 : begin
+              io_data8tx = _zz_io_data8tx_2;
+            end
+            8'b??????1? : begin
+              io_data8tx = alu_1_io_acc;
+            end
+            default : begin
+            end
+          endcase
         end
+      end
+      fsmPhase_enumDef_STRETCH : begin
       end
       default : begin
       end
@@ -402,19 +594,12 @@ module MyState (
         end
       end
       fsmPhase_enumDef_CONTROL : begin
-        if(io_wantTick) begin
-          if(when_I2CBertTop_l253) begin
-            if(!when_I2CBertTop_l254) begin
-              if(!when_I2CBertTop_l258) begin
-                fsmPhase_wantExit = 1'b1;
-              end
-            end
-          end
-        end
       end
       fsmPhase_enumDef_RECV : begin
       end
       fsmPhase_enumDef_SEND : begin
+      end
+      fsmPhase_enumDef_STRETCH : begin
       end
       default : begin
       end
@@ -442,50 +627,101 @@ module MyState (
       end
       fsmPhase_enumDef_CONTROL : begin
         if(io_wantTick) begin
-          if(when_I2CBertTop_l253) begin
-            if(when_I2CBertTop_l254) begin
-              fsmPhase_stateNext = fsmPhase_enumDef_RESET;
-            end else begin
-              if(when_I2CBertTop_l258) begin
-                fsmPhase_stateNext = fsmPhase_enumDef_SEND;
-              end else begin
-                fsmPhase_stateNext = fsmPhase_enumDef_BOOT;
-              end
-            end
-          end else begin
-            if(when_I2CBertTop_l266) begin
-              fsmPhase_stateNext = fsmPhase_enumDef_RESET;
-            end else begin
-              if(when_I2CBertTop_l270) begin
+          if(when_I2CBertTop_l317) begin
+            casez(io_datain8rxNow)
+              8'b1100000? : begin
                 fsmPhase_stateNext = fsmPhase_enumDef_RESET;
-              end else begin
-                if(when_I2CBertTop_l274) begin
-                  fsmPhase_stateNext = fsmPhase_enumDef_RESET;
-                end else begin
-                  if(when_I2CBertTop_l278) begin
-                    fsmPhase_stateNext = fsmPhase_enumDef_RESET;
-                  end else begin
-                    fsmPhase_stateNext = fsmPhase_enumDef_RECV;
-                  end
-                end
               end
-            end
+              8'b1100010? : begin
+                fsmPhase_stateNext = fsmPhase_enumDef_RESET;
+              end
+              8'b??????1?, 8'b11111001, 8'b11100001, 8'b11000001, 8'b11010001, 8'b11110001, 8'b11111101 : begin
+                fsmPhase_stateNext = fsmPhase_enumDef_SEND;
+              end
+              default : begin
+                fsmPhase_stateNext = fsmPhase_enumDef_RESET;
+              end
+            endcase
+          end else begin
+            casez(io_datain8rxNow)
+              8'b11110000 : begin
+                fsmPhase_stateNext = fsmPhase_enumDef_RESET;
+              end
+              8'b1100000? : begin
+                fsmPhase_stateNext = fsmPhase_enumDef_RESET;
+              end
+              8'b1100010? : begin
+                fsmPhase_stateNext = fsmPhase_enumDef_RESET;
+              end
+              8'b11001000 : begin
+                fsmPhase_stateNext = fsmPhase_enumDef_STRETCH;
+              end
+              8'b11001100 : begin
+                fsmPhase_stateNext = fsmPhase_enumDef_RESET;
+              end
+              8'b??????1?, 8'b11111000, 8'b11100000, 8'b11000000, 8'b11010000, 8'b11111100 : begin
+                fsmPhase_stateNext = fsmPhase_enumDef_RECV;
+              end
+              default : begin
+                fsmPhase_stateNext = fsmPhase_enumDef_RESET;
+              end
+            endcase
           end
         end
       end
       fsmPhase_enumDef_RECV : begin
         if(io_wantTick) begin
-          if(when_I2CBertTop_l294) begin
-            if(!when_I2CBertTop_l295) begin
+          casez(cmd8)
+            8'b11010000 : begin
               fsmPhase_stateNext = fsmPhase_enumDef_RESET;
             end
-          end
+            8'b11100000 : begin
+              if(!when_I2CBertTop_l383) begin
+                if(when_I2CBertTop_l385) begin
+                  fsmPhase_stateNext = fsmPhase_enumDef_RESET;
+                end
+              end
+            end
+            8'b11111000 : begin
+              fsmPhase_stateNext = fsmPhase_enumDef_RESET;
+            end
+            8'b11000000 : begin
+              fsmPhase_stateNext = fsmPhase_enumDef_RESET;
+            end
+            8'b??????1? : begin
+              if(when_I2CBertTop_l406) begin
+                fsmPhase_stateNext = fsmPhase_enumDef_RESET;
+              end
+            end
+            default : begin
+            end
+          endcase
         end
       end
       fsmPhase_enumDef_SEND : begin
         if(io_wantTick) begin
-          if(when_I2CBertTop_l313) begin
-            fsmPhase_stateNext = fsmPhase_enumDef_RESET;
+          casez(cmd8)
+            8'b11111001 : begin
+              fsmPhase_stateNext = fsmPhase_enumDef_RESET;
+            end
+            8'b??????1? : begin
+              if(when_I2CBertTop_l453) begin
+                fsmPhase_stateNext = fsmPhase_enumDef_RESET;
+              end
+            end
+            default : begin
+            end
+          endcase
+        end
+      end
+      fsmPhase_enumDef_STRETCH : begin
+        if(io_wantTick) begin
+          if(when_I2CBertTop_l467) begin
+            if(when_I2CBertTop_l468) begin
+              fsmPhase_stateNext = fsmPhase_enumDef_SEND;
+            end else begin
+              fsmPhase_stateNext = fsmPhase_enumDef_RECV;
+            end
           end
         end
       end
@@ -503,38 +739,49 @@ module MyState (
     end
   end
 
-  assign when_I2CBertTop_l253 = io_datain8rx[0];
-  assign when_I2CBertTop_l254 = (io_datain8rx[2 : 1] == 2'b10);
-  assign when_I2CBertTop_l258 = (io_datain8rx[2 : 1] == 2'b11);
-  assign when_I2CBertTop_l266 = (io_datain8rx[7 : 4] == 4'b1111);
-  assign when_I2CBertTop_l270 = (io_datain8rx[7 : 4] == 4'b1110);
-  assign when_I2CBertTop_l274 = (io_datain8rx[3 : 1] == 3'b000);
-  assign when_I2CBertTop_l278 = (io_datain8rx[3 : 1] == 3'b001);
-  assign when_I2CBertTop_l294 = (counter == len12);
-  assign when_I2CBertTop_l295 = (cmd8[3] == 1'b0);
-  assign when_I2CBertTop_l296 = (cmd8[2 : 1] == 2'b00);
-  assign when_I2CBertTop_l313 = (counter == len12);
-  assign when_I2CBertTop_l316 = cmd8[3];
-  assign when_I2CBertTop_l319 = (cmd8[2 : 1] == 2'b00);
-  assign switch_Misc_l226 = counter[1 : 0];
+  assign when_I2CBertTop_l317 = (io_datain8rxNow[0] == 1'b1);
+  assign when_I2CBertTop_l383 = (counter == 12'h000);
+  assign when_I2CBertTop_l385 = (counter == 12'h001);
+  assign when_I2CBertTop_l406 = (counter == len12);
+  assign switch_Misc_l226 = counter[0 : 0];
   always @(*) begin
     case(switch_Misc_l226)
-      2'b00 : begin
-        _zz_io_data8tx = io_latched[7 : 0];
-      end
-      2'b01 : begin
-        _zz_io_data8tx = io_latched[15 : 8];
-      end
-      2'b10 : begin
-        _zz_io_data8tx = io_latched[23 : 16];
+      1'b0 : begin
+        _zz_io_data8tx = io_timerEndstop[7 : 0];
       end
       default : begin
-        _zz_io_data8tx = io_latched[31 : 24];
+        _zz_io_data8tx = _zz__zz_io_data8tx;
       end
     endcase
   end
 
-  assign when_I2CBertTop_l321 = (cmd8[2 : 1] == 2'b11);
+  always @(*) begin
+    _zz_io_data8tx_1[7 : 2] = 6'h00;
+    _zz_io_data8tx_1[1] = io_cfgSclMode;
+    _zz_io_data8tx_1[0] = io_cfgPushPull;
+  end
+
+  assign switch_Misc_l226_1 = counter[1 : 0];
+  always @(*) begin
+    case(switch_Misc_l226_1)
+      2'b00 : begin
+        _zz_io_data8tx_2 = io_latched[7 : 0];
+      end
+      2'b01 : begin
+        _zz_io_data8tx_2 = io_latched[15 : 8];
+      end
+      2'b10 : begin
+        _zz_io_data8tx_2 = io_latched[23 : 16];
+      end
+      default : begin
+        _zz_io_data8tx_2 = io_latched[31 : 24];
+      end
+    endcase
+  end
+
+  assign when_I2CBertTop_l453 = (counter == len12);
+  assign when_I2CBertTop_l467 = (counter == len12);
+  assign when_I2CBertTop_l468 = (readWriteBit == 1'b1);
   always @(posedge clk) begin
     if(!rst_n) begin
       len8 <= 8'h00;
@@ -547,51 +794,60 @@ module MyState (
         end
         fsmPhase_enumDef_CONTROL : begin
           if(io_wantTick) begin
-            if(when_I2CBertTop_l253) begin
-              if(when_I2CBertTop_l254) begin
-                len8 <= 8'h00;
-              end else begin
-                if(when_I2CBertTop_l258) begin
+            if(when_I2CBertTop_l317) begin
+              casez(io_datain8rxNow)
+                8'b1100000? : begin
+                end
+                8'b1100010? : begin
+                end
+                8'b??????1?, 8'b11111001, 8'b11100001, 8'b11000001, 8'b11010001, 8'b11110001, 8'b11111101 : begin
                   counter <= 12'h000;
                 end
-              end
-            end else begin
-              if(when_I2CBertTop_l266) begin
-                len8 <= 8'h00;
-              end else begin
-                if(when_I2CBertTop_l270) begin
-                  len8 <= 8'h2a;
-                end else begin
-                  if(when_I2CBertTop_l274) begin
-                    len8 <= 8'h00;
-                  end else begin
-                    if(when_I2CBertTop_l278) begin
-                      len8 <= 8'h00;
-                    end else begin
-                      counter <= 12'h000;
-                    end
-                  end
+                default : begin
                 end
-              end
+              endcase
+            end else begin
+              casez(io_datain8rxNow)
+                8'b11110000 : begin
+                  len8 <= 8'h00;
+                end
+                8'b1100000? : begin
+                end
+                8'b1100010? : begin
+                end
+                8'b11001000 : begin
+                end
+                8'b11001100 : begin
+                end
+                8'b??????1?, 8'b11111000, 8'b11100000, 8'b11000000, 8'b11010000, 8'b11111100 : begin
+                  counter <= 12'h000;
+                end
+                default : begin
+                end
+              endcase
             end
           end
         end
         fsmPhase_enumDef_RECV : begin
           if(io_wantTick) begin
-            if(when_I2CBertTop_l294) begin
-              if(when_I2CBertTop_l295) begin
-                if(when_I2CBertTop_l296) begin
-                  len8 <= io_datain8rx;
-                end
+            casez(cmd8)
+              8'b11010000 : begin
+                len8 <= io_datain8rxNow;
               end
-            end else begin
-              counter <= (counter + 12'h001);
-            end
+              default : begin
+              end
+            endcase
+            counter <= (counter + 12'h001);
           end
         end
         fsmPhase_enumDef_SEND : begin
           if(io_wantTick) begin
-            if(!when_I2CBertTop_l313) begin
+            counter <= (counter + 12'h001);
+          end
+        end
+        fsmPhase_enumDef_STRETCH : begin
+          if(io_wantTick) begin
+            if(!when_I2CBertTop_l467) begin
               counter <= (counter + 12'h001);
             end
           end
@@ -608,13 +864,94 @@ module MyState (
       end
       fsmPhase_enumDef_CONTROL : begin
         if(io_wantTick) begin
-          readWriteBit <= io_datain8rx[0];
-          cmd7 <= io_datain8rx[7 : 1];
+          readWriteBit <= io_datain8rxNow[0];
+          cmd7 <= io_datain8rxNow[7 : 1];
+          if(when_I2CBertTop_l317) begin
+            casez(io_datain8rxNow)
+              8'b1100000? : begin
+                readWriteBit <= 1'b0;
+              end
+              8'b1100010? : begin
+                readWriteBit <= 1'b1;
+              end
+              8'b??????1?, 8'b11111001, 8'b11100001, 8'b11000001, 8'b11010001, 8'b11110001, 8'b11111101 : begin
+              end
+              default : begin
+                readWriteBit <= 1'b1;
+              end
+            endcase
+          end else begin
+            casez(io_datain8rxNow)
+              8'b11110000 : begin
+                readWriteBit <= 1'b0;
+              end
+              8'b1100000? : begin
+                readWriteBit <= 1'b0;
+              end
+              8'b1100010? : begin
+                readWriteBit <= 1'b1;
+              end
+              8'b11001000 : begin
+                readWriteBit <= 1'b0;
+              end
+              8'b11001100 : begin
+                readWriteBit <= 1'b1;
+              end
+              8'b??????1?, 8'b11111000, 8'b11100000, 8'b11000000, 8'b11010000, 8'b11111100 : begin
+              end
+              default : begin
+                readWriteBit <= 1'b1;
+              end
+            endcase
+          end
         end
       end
       fsmPhase_enumDef_RECV : begin
+        if(io_wantTick) begin
+          casez(cmd8)
+            8'b11010000 : begin
+              readWriteBit <= 1'b0;
+            end
+            8'b11100000 : begin
+              if(!when_I2CBertTop_l383) begin
+                if(when_I2CBertTop_l385) begin
+                  readWriteBit <= 1'b0;
+                end
+              end
+            end
+            8'b11111000 : begin
+              readWriteBit <= 1'b0;
+            end
+            8'b11000000 : begin
+              readWriteBit <= 1'b1;
+            end
+            8'b??????1? : begin
+              if(when_I2CBertTop_l406) begin
+                readWriteBit <= 1'b0;
+              end
+            end
+            default : begin
+            end
+          endcase
+        end
       end
       fsmPhase_enumDef_SEND : begin
+        if(io_wantTick) begin
+          casez(cmd8)
+            8'b11111001 : begin
+              readWriteBit <= 1'b0;
+            end
+            8'b??????1? : begin
+              if(when_I2CBertTop_l453) begin
+                readWriteBit <= 1'b0;
+              end
+            end
+            default : begin
+            end
+          endcase
+        end
+      end
+      fsmPhase_enumDef_STRETCH : begin
       end
       default : begin
       end
@@ -625,7 +962,7 @@ module MyState (
 endmodule
 
 module MyI2C (
-  output              io_bus_sclOut,
+  output reg          io_bus_sclOut,
   input               io_bus_sclIn,
   output              io_bus_sclOe,
   output reg          io_bus_sdaOut,
@@ -635,8 +972,11 @@ module MyI2C (
   input               io_sclTick,
   input               io_timeoutError,
   output reg          io_timerRun,
+  output reg          io_timerLoad,
   input               io_canRecv,
   input               io_canSend,
+  input               io_canNack,
+  input               io_canStretch,
   output reg          io_wantReset,
   output reg          io_wantStart,
   output reg          io_wantTick,
@@ -648,28 +988,26 @@ module MyI2C (
   input               clk,
   input               rst_n
 );
-  localparam fsm_enumDef_BOOT = 3'd0;
-  localparam fsm_enumDef_RESET = 3'd1;
-  localparam fsm_enumDef_HUNT = 3'd2;
-  localparam fsm_enumDef_RECV = 3'd3;
-  localparam fsm_enumDef_ACKNACK = 3'd4;
-  localparam fsm_enumDef_SEND = 3'd5;
-  localparam fsm_enumDef_PRECHECK = 3'd6;
-  localparam fsm_enumDef_CHECK = 3'd7;
+  localparam fsm_enumDef_BOOT = 4'd0;
+  localparam fsm_enumDef_RESET = 4'd1;
+  localparam fsm_enumDef_HUNT = 4'd2;
+  localparam fsm_enumDef_RECV = 4'd3;
+  localparam fsm_enumDef_ACKNACK = 4'd4;
+  localparam fsm_enumDef_SEND = 4'd5;
+  localparam fsm_enumDef_PRECHECK = 4'd6;
+  localparam fsm_enumDef_CHECK = 4'd7;
+  localparam fsm_enumDef_AUTOBAUD = 4'd8;
 
   wire                maj3_X;
   wire                clockGate_clk_out;
   reg                 sdaTx;
-  wire                sclTx;
+  reg                 sclTx;
+  wire                when_Utils_l1149;
   wire                history_0;
   reg                 history_1;
   reg                 history_2;
   wire                sda;
-  wire                sdaAtReset;
-  wire                sdaAtResetCaptured;
-  wire                attention;
   reg                 sclSignalNext;
-  wire                scl;
   wire                sdaEdge_rise;
   wire                sdaEdge_fall;
   wire                sdaEdge_toggle;
@@ -677,7 +1015,7 @@ module MyI2C (
   wire                sclEdge_rise;
   wire                sclEdge_fall;
   wire                sclEdge_toggle;
-  reg                 scl_regNext;
+  reg                 sclSignalNext_regNext;
   wire                isStart;
   wire                isStop;
   reg        [7:0]    shifter;
@@ -686,13 +1024,15 @@ module MyI2C (
   reg                 fsm_wantStart;
   wire                fsm_wantKill;
   reg        [2:0]    fsm_bitCount;
-  reg        [2:0]    fsm_stateReg;
-  reg        [2:0]    fsm_stateNext;
-  wire                when_I2CBertTop_l531;
-  wire                when_I2CBertTop_l556;
-  wire                when_I2CBertTop_l545;
-  wire                when_I2CBertTop_l575;
-  wire                when_I2CBertTop_l592;
+  reg        [3:0]    fsm_stateReg;
+  reg        [3:0]    fsm_stateNext;
+  wire                when_I2CBertTop_l691;
+  wire                when_I2CBertTop_l716;
+  wire                when_I2CBertTop_l720;
+  wire                when_I2CBertTop_l705;
+  wire                when_I2CBertTop_l739;
+  wire                when_I2CBertTop_l756;
+  wire                when_I2CBertTop_l767;
   `ifndef SYNTHESIS
   reg [63:0] fsm_stateReg_string;
   reg [63:0] fsm_stateNext_string;
@@ -722,6 +1062,7 @@ module MyI2C (
       fsm_enumDef_SEND : fsm_stateReg_string = "SEND    ";
       fsm_enumDef_PRECHECK : fsm_stateReg_string = "PRECHECK";
       fsm_enumDef_CHECK : fsm_stateReg_string = "CHECK   ";
+      fsm_enumDef_AUTOBAUD : fsm_stateReg_string = "AUTOBAUD";
       default : fsm_stateReg_string = "????????";
     endcase
   end
@@ -735,6 +1076,7 @@ module MyI2C (
       fsm_enumDef_SEND : fsm_stateNext_string = "SEND    ";
       fsm_enumDef_PRECHECK : fsm_stateNext_string = "PRECHECK";
       fsm_enumDef_CHECK : fsm_stateNext_string = "CHECK   ";
+      fsm_enumDef_AUTOBAUD : fsm_stateNext_string = "AUTOBAUD";
       default : fsm_stateNext_string = "????????";
     endcase
   end
@@ -750,7 +1092,7 @@ module MyI2C (
       fsm_enumDef_RECV : begin
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l556) begin
+        if(when_I2CBertTop_l716) begin
           sdaTx = 1'b1;
         end
       end
@@ -761,12 +1103,42 @@ module MyI2C (
       end
       fsm_enumDef_CHECK : begin
       end
+      fsm_enumDef_AUTOBAUD : begin
+      end
       default : begin
       end
     endcase
   end
 
-  assign sclTx = 1'b0;
+  always @(*) begin
+    sclTx = 1'b0;
+    case(fsm_stateReg)
+      fsm_enumDef_RESET : begin
+      end
+      fsm_enumDef_HUNT : begin
+      end
+      fsm_enumDef_RECV : begin
+      end
+      fsm_enumDef_ACKNACK : begin
+        if(when_I2CBertTop_l716) begin
+          if(when_I2CBertTop_l720) begin
+            sclTx = io_canStretch;
+          end
+        end
+      end
+      fsm_enumDef_SEND : begin
+      end
+      fsm_enumDef_PRECHECK : begin
+      end
+      fsm_enumDef_CHECK : begin
+      end
+      fsm_enumDef_AUTOBAUD : begin
+      end
+      default : begin
+      end
+    endcase
+  end
+
   always @(*) begin
     io_bus_sdaOut = (! io_pushPullMode);
     case(fsm_stateReg)
@@ -777,8 +1149,8 @@ module MyI2C (
       fsm_enumDef_RECV : begin
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l556) begin
-          io_bus_sdaOut = ((! io_canSend) && (! io_canRecv));
+        if(when_I2CBertTop_l716) begin
+          io_bus_sdaOut = (((! io_canNack) && (! io_canSend)) && (! io_canRecv));
         end
       end
       fsm_enumDef_SEND : begin
@@ -790,13 +1162,43 @@ module MyI2C (
       end
       fsm_enumDef_CHECK : begin
       end
+      fsm_enumDef_AUTOBAUD : begin
+      end
       default : begin
       end
     endcase
   end
 
   assign io_bus_sdaOe = (sdaTx && (io_pushPullMode || (! io_bus_sdaOut)));
-  assign io_bus_sclOut = 1'b1;
+  always @(*) begin
+    io_bus_sclOut = 1'b1;
+    case(fsm_stateReg)
+      fsm_enumDef_RESET : begin
+      end
+      fsm_enumDef_HUNT : begin
+      end
+      fsm_enumDef_RECV : begin
+      end
+      fsm_enumDef_ACKNACK : begin
+        if(when_I2CBertTop_l716) begin
+          if(when_I2CBertTop_l720) begin
+            io_bus_sclOut = io_canStretch;
+          end
+        end
+      end
+      fsm_enumDef_SEND : begin
+      end
+      fsm_enumDef_PRECHECK : begin
+      end
+      fsm_enumDef_CHECK : begin
+      end
+      fsm_enumDef_AUTOBAUD : begin
+      end
+      default : begin
+      end
+    endcase
+  end
+
   assign io_bus_sclOe = (sclTx && (io_pushPullMode || (! io_bus_sclOut)));
   always @(*) begin
     io_timerRun = 1'b0;
@@ -810,9 +1212,11 @@ module MyI2C (
       end
       fsm_enumDef_ACKNACK : begin
         io_timerRun = 1'b1;
-        if(when_I2CBertTop_l556) begin
-          if(sclEdge_rise) begin
-            io_timerRun = 1'b0;
+        if(when_I2CBertTop_l716) begin
+          if(!when_I2CBertTop_l720) begin
+            if(sclEdge_rise) begin
+              io_timerRun = 1'b0;
+            end
           end
         end
       end
@@ -824,6 +1228,38 @@ module MyI2C (
       end
       fsm_enumDef_CHECK : begin
         io_timerRun = 1'b1;
+      end
+      fsm_enumDef_AUTOBAUD : begin
+        io_timerRun = 1'b1;
+      end
+      default : begin
+      end
+    endcase
+  end
+
+  always @(*) begin
+    io_timerLoad = 1'b0;
+    case(fsm_stateReg)
+      fsm_enumDef_RESET : begin
+      end
+      fsm_enumDef_HUNT : begin
+      end
+      fsm_enumDef_RECV : begin
+      end
+      fsm_enumDef_ACKNACK : begin
+      end
+      fsm_enumDef_SEND : begin
+      end
+      fsm_enumDef_PRECHECK : begin
+      end
+      fsm_enumDef_CHECK : begin
+      end
+      fsm_enumDef_AUTOBAUD : begin
+        if(sclEdge_rise) begin
+          if(when_I2CBertTop_l756) begin
+            io_timerLoad = 1'b1;
+          end
+        end
       end
       default : begin
       end
@@ -847,6 +1283,8 @@ module MyI2C (
       fsm_enumDef_PRECHECK : begin
       end
       fsm_enumDef_CHECK : begin
+      end
+      fsm_enumDef_AUTOBAUD : begin
       end
       default : begin
       end
@@ -873,6 +1311,8 @@ module MyI2C (
       end
       fsm_enumDef_CHECK : begin
       end
+      fsm_enumDef_AUTOBAUD : begin
+      end
       default : begin
       end
     endcase
@@ -887,21 +1327,23 @@ module MyI2C (
       end
       fsm_enumDef_RECV : begin
         if(sclEdge_rise) begin
-          if(when_I2CBertTop_l531) begin
+          if(when_I2CBertTop_l691) begin
             io_wantTick = 1'b1;
           end
         end
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l556) begin
-          if(sclEdge_rise) begin
-            io_wantTick = 1'b1;
+        if(when_I2CBertTop_l716) begin
+          if(!when_I2CBertTop_l720) begin
+            if(sclEdge_rise) begin
+              io_wantTick = 1'b1;
+            end
           end
         end
       end
       fsm_enumDef_SEND : begin
         if(sclEdge_rise) begin
-          if(when_I2CBertTop_l545) begin
+          if(when_I2CBertTop_l705) begin
             io_wantTick = 1'b1;
           end
         end
@@ -909,6 +1351,8 @@ module MyI2C (
       fsm_enumDef_PRECHECK : begin
       end
       fsm_enumDef_CHECK : begin
+      end
+      fsm_enumDef_AUTOBAUD : begin
       end
       default : begin
       end
@@ -920,19 +1364,16 @@ module MyI2C (
     io_data8rx = shifter;
   end
 
+  assign when_Utils_l1149 = 1'b1;
   assign history_0 = io_bus_sdaIn;
   assign sda = (io_sclMode ? maj3_X : history_0);
   assign io_sdaSignal = sda;
-  assign sdaAtReset = io_bus_sdaIn;
-  assign sdaAtResetCaptured = 1'b0;
-  assign attention = io_bus_sdaIn;
-  assign scl = (io_sclMode ? clockGate_clk_out : (io_bus_sclIn && (! clockGate_clk_out)));
   assign sdaEdge_rise = ((! i2c_maj3_X_regNext) && maj3_X);
   assign sdaEdge_fall = (i2c_maj3_X_regNext && (! maj3_X));
   assign sdaEdge_toggle = (i2c_maj3_X_regNext != maj3_X);
-  assign sclEdge_rise = ((! scl_regNext) && scl);
-  assign sclEdge_fall = (scl_regNext && (! scl));
-  assign sclEdge_toggle = (scl_regNext != scl);
+  assign sclEdge_rise = ((! sclSignalNext_regNext) && sclSignalNext);
+  assign sclEdge_fall = (sclSignalNext_regNext && (! sclSignalNext));
+  assign sclEdge_toggle = (sclSignalNext_regNext != sclSignalNext);
   assign isStart = (sclSignalNext && sdaEdge_fall);
   assign isStop = (sclSignalNext && sdaEdge_rise);
   assign shifterNow = {shifter[6 : 0],sda};
@@ -959,6 +1400,8 @@ module MyI2C (
           end
         end
       end
+      fsm_enumDef_AUTOBAUD : begin
+      end
       default : begin
       end
     endcase
@@ -981,6 +1424,8 @@ module MyI2C (
       end
       fsm_enumDef_CHECK : begin
       end
+      fsm_enumDef_AUTOBAUD : begin
+      end
       default : begin
         fsm_wantStart = 1'b1;
       end
@@ -1001,21 +1446,23 @@ module MyI2C (
       end
       fsm_enumDef_RECV : begin
         if(sclEdge_rise) begin
-          if(when_I2CBertTop_l531) begin
+          if(when_I2CBertTop_l691) begin
             fsm_stateNext = fsm_enumDef_ACKNACK;
           end
         end
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l556) begin
-          if(sclEdge_rise) begin
-            if(io_canSend) begin
-              fsm_stateNext = fsm_enumDef_SEND;
-            end else begin
-              if(io_canRecv) begin
-                fsm_stateNext = fsm_enumDef_RECV;
+        if(when_I2CBertTop_l716) begin
+          if(!when_I2CBertTop_l720) begin
+            if(sclEdge_rise) begin
+              if(io_canSend) begin
+                fsm_stateNext = fsm_enumDef_SEND;
               end else begin
-                fsm_stateNext = fsm_enumDef_RESET;
+                if(io_canRecv) begin
+                  fsm_stateNext = fsm_enumDef_RECV;
+                end else begin
+                  fsm_stateNext = fsm_enumDef_RESET;
+                end
               end
             end
           end
@@ -1023,13 +1470,13 @@ module MyI2C (
       end
       fsm_enumDef_SEND : begin
         if(sclEdge_rise) begin
-          if(when_I2CBertTop_l545) begin
+          if(when_I2CBertTop_l705) begin
             fsm_stateNext = fsm_enumDef_PRECHECK;
           end
         end
       end
       fsm_enumDef_PRECHECK : begin
-        if(when_I2CBertTop_l575) begin
+        if(when_I2CBertTop_l739) begin
           fsm_stateNext = fsm_enumDef_CHECK;
         end
       end
@@ -1042,10 +1489,17 @@ module MyI2C (
           end
         end
       end
+      fsm_enumDef_AUTOBAUD : begin
+        if(sclEdge_rise) begin
+          if(when_I2CBertTop_l756) begin
+            fsm_stateNext = fsm_enumDef_ACKNACK;
+          end
+        end
+      end
       default : begin
       end
     endcase
-    if(when_I2CBertTop_l592) begin
+    if(when_I2CBertTop_l767) begin
       fsm_stateNext = fsm_enumDef_RESET;
     end
     if(io_timeoutError) begin
@@ -1059,17 +1513,23 @@ module MyI2C (
     end
   end
 
-  assign when_I2CBertTop_l531 = (fsm_bitCount == 3'b111);
-  assign when_I2CBertTop_l556 = (! sclSignalNext);
-  assign when_I2CBertTop_l545 = (fsm_bitCount == 3'b111);
-  assign when_I2CBertTop_l575 = (! sclSignalNext);
-  assign when_I2CBertTop_l592 = (isStop && (! sdaTx));
+  assign when_I2CBertTop_l691 = (fsm_bitCount == 3'b111);
+  assign when_I2CBertTop_l716 = (((! sclSignalNext) || sclEdge_rise) || io_canStretch);
+  assign when_I2CBertTop_l720 = ((! sclSignalNext) && io_canStretch);
+  assign when_I2CBertTop_l705 = (fsm_bitCount == 3'b111);
+  assign when_I2CBertTop_l739 = (! sclSignalNext);
+  assign when_I2CBertTop_l756 = (fsm_bitCount == 3'b111);
+  assign when_I2CBertTop_l767 = (isStop && (! sdaTx));
   always @(posedge clk) begin
-    history_1 <= history_0;
-    history_2 <= history_1;
+    if(when_Utils_l1149) begin
+      history_1 <= history_0;
+    end
+    if(when_Utils_l1149) begin
+      history_2 <= history_1;
+    end
     sclSignalNext <= io_bus_sclIn;
     i2c_maj3_X_regNext <= maj3_X;
-    scl_regNext <= scl;
+    sclSignalNext_regNext <= sclSignalNext;
     case(fsm_stateReg)
       fsm_enumDef_RESET : begin
       end
@@ -1081,22 +1541,24 @@ module MyI2C (
       fsm_enumDef_RECV : begin
         if(sclEdge_rise) begin
           shifter <= shifterNow;
-          if(!when_I2CBertTop_l531) begin
+          if(!when_I2CBertTop_l691) begin
             fsm_bitCount <= (fsm_bitCount + 3'b001);
           end
         end
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l556) begin
-          if(sclEdge_rise) begin
-            fsm_bitCount <= 3'b000;
+        if(when_I2CBertTop_l716) begin
+          if(!when_I2CBertTop_l720) begin
+            if(sclEdge_rise) begin
+              fsm_bitCount <= 3'b000;
+            end
           end
         end
       end
       fsm_enumDef_SEND : begin
         if(sclEdge_rise) begin
           shifter <= {shifter[6 : 0],shifter[7]};
-          if(!when_I2CBertTop_l545) begin
+          if(!when_I2CBertTop_l705) begin
             fsm_bitCount <= (fsm_bitCount + 3'b001);
           end
         end
@@ -1104,6 +1566,13 @@ module MyI2C (
       fsm_enumDef_PRECHECK : begin
       end
       fsm_enumDef_CHECK : begin
+      end
+      fsm_enumDef_AUTOBAUD : begin
+        if(sclEdge_rise) begin
+          if(!when_I2CBertTop_l756) begin
+            fsm_bitCount <= (fsm_bitCount + 3'b001);
+          end
+        end
       end
       default : begin
       end
@@ -1130,64 +1599,63 @@ module Timer (
   output              io_canStart,
   input               io_div12active,
   input      [11:0]   io_div12,
+  input               io_timerLoadH,
+  input               io_timerLoadL,
+  input      [7:0]    io_timerData,
+  output     [11:0]   io_timerEndstop,
   input               rst_n,
   input               clk
 );
 
   reg        [11:0]   endstop;
-  wire                when_I2CBertTop_l362;
+  wire                when_I2CBertTop_l512;
   reg        [11:0]   ticker_count;
-  reg                 ticker_sclTick;
+  wire                ticker_sclTick;
   reg                 ticker_timeoutError;
   reg                 ticker_canStart;
   reg                 ticker_canPowerOnReset;
   wire                ticker_reset;
   reg        [2:0]    ticker_tickState;
-  wire                when_I2CBertTop_l387;
-  wire                when_I2CBertTop_l393;
-  wire                when_I2CBertTop_l396;
-  wire                when_I2CBertTop_l399;
+  wire                when_I2CBertTop_l538;
+  wire                when_I2CBertTop_l544;
+  wire                when_I2CBertTop_l547;
+  wire                when_I2CBertTop_l550;
 
-  assign when_I2CBertTop_l362 = (! rst_n);
-  always @(*) begin
-    ticker_sclTick = 1'b0;
-    if(when_I2CBertTop_l387) begin
-      ticker_sclTick = 1'b1;
-    end
-  end
-
+  assign when_I2CBertTop_l512 = (! rst_n);
+  assign io_timerEndstop = endstop;
+  assign ticker_sclTick = 1'b0;
   always @(*) begin
     ticker_timeoutError = 1'b0;
-    if(when_I2CBertTop_l396) begin
+    if(when_I2CBertTop_l547) begin
       ticker_timeoutError = 1'b1;
     end
   end
 
   always @(*) begin
     ticker_canStart = 1'b0;
-    if(when_I2CBertTop_l393) begin
+    if(when_I2CBertTop_l544) begin
       ticker_canStart = 1'b1;
     end
   end
 
   always @(*) begin
     ticker_canPowerOnReset = 1'b0;
-    if(when_I2CBertTop_l399) begin
+    if(when_I2CBertTop_l550) begin
       ticker_canPowerOnReset = 1'b1;
     end
   end
 
   assign ticker_reset = (! io_timerRun);
-  assign when_I2CBertTop_l387 = (ticker_tickState == 3'b101);
-  assign when_I2CBertTop_l393 = (ticker_count == 12'h012);
-  assign when_I2CBertTop_l396 = (ticker_count == 12'h03c);
-  assign when_I2CBertTop_l399 = (ticker_count == 12'h004);
+  assign when_I2CBertTop_l538 = (ticker_tickState == 3'b101);
+  assign when_I2CBertTop_l544 = (ticker_count == 12'h012);
+  assign when_I2CBertTop_l547 = (ticker_count == 12'h03c);
+  assign when_I2CBertTop_l550 = (ticker_count == 12'h004);
   assign io_timeoutError = ticker_timeoutError;
   assign io_sclTick = ticker_sclTick;
   assign io_canStart = ticker_canStart;
   assign io_canPowerOnReset = ticker_canPowerOnReset;
   always @(posedge clk) begin
-    if(when_I2CBertTop_l362) begin
+    if(when_I2CBertTop_l512) begin
       if(io_div12active) begin
         endstop <= io_div12;
       end else begin
@@ -1196,6 +1664,14 @@ module Timer (
     end
     if(io_timerLoad) begin
       endstop <= ticker_count;
+    end else begin
+      if(io_timerLoadH) begin
+        endstop[11 : 8] <= io_timerData[3 : 0];
+      end else begin
+        if(io_timerLoadL) begin
+          endstop[7 : 0] <= io_timerData;
+        end
+      end
     end
   end
 
@@ -1204,7 +1680,7 @@ module Timer (
       ticker_count <= 12'h000;
       ticker_tickState <= 3'b000;
     end else begin
-      if(when_I2CBertTop_l387) begin
+      if(when_I2CBertTop_l538) begin
         ticker_tickState <= 3'b000;
       end else begin
         ticker_tickState <= (ticker_tickState + 3'b001);
@@ -1225,14 +1701,19 @@ module ALU (
   output     [7:0]    io_acc,
   input      [7:0]    io_opand,
   input      [1:0]    io_op,
+  input      [0:0]    io_op2,
   input               io_reset,
   input               io_en,
   input               clk,
   input               rst_n
 );
 
+  wire       [7:0]    _zz_acc;
   reg        [7:0]    acc;
+  wire       [2:0]    switch_I2CBertTop_l181;
 
+  assign _zz_acc = (acc + io_opand);
+  assign switch_I2CBertTop_l181 = {io_op2,io_op};
   assign io_acc = acc;
   always @(posedge clk) begin
     if(!rst_n) begin
@@ -1242,18 +1723,21 @@ module ALU (
         acc <= 8'h00;
       end else begin
         if(io_en) begin
-          case(io_op)
-            2'b00 : begin
+          case(switch_I2CBertTop_l181)
+            3'b000 : begin
               acc <= (acc & io_opand);
             end
-            2'b01 : begin
+            3'b001 : begin
               acc <= (acc | io_opand);
             end
-            2'b10 : begin
+            3'b010 : begin
               acc <= (acc ^ io_opand);
             end
+            3'b011 : begin
+              acc <= _zz_acc;
+            end
             default : begin
-              acc <= 8'hff;
+              acc <= io_opand;
             end
           endcase
         end
