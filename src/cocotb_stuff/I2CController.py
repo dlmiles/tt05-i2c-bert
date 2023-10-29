@@ -300,7 +300,7 @@ class I2CController():
 
     @property
     def sda_rx(self) -> bool:
-        if self.GL_TEST and not self._sdascl_out.is_resolvable():
+        if self.GL_TEST and not self._sdascl_out.raw.is_resolvable():
             nv = False	# FIXME pickup RANDOM_POLICY
             self._dut._log.warn("GL_TEST I2CController.sda_rx() = {str(self._sdascl_out)} [IS_NOT_RESOLABLE] using {nv}")
             return nv
@@ -309,7 +309,7 @@ class I2CController():
 
     @property
     def sda_oe(self) -> bool:
-        if self.GL_TEST and not self._sdascl_out.is_resolvable():
+        if self.GL_TEST and not self._sdascl_out.raw.is_resolvable():
             nv = False	# FIXME pickup RANDOM_POLICY
             self._dut._log.warn("GL_TEST I2CController.sda_rx() = {str(self._sdascl_out)} [IS_NOT_RESOLABLE] using {nv}")
             return nv
