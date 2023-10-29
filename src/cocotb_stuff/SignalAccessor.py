@@ -61,8 +61,9 @@ class SignalAccessor():
 
     # Allow single bit
     class AccessorBit():
-        def __init__(self, sa: 'SignalAccessor', bitid: int):
+        def __init__(self, sa: 'SignalAccessor', label: str, bitid: int):
             self._sa = sa
+            self._label = label
             assert type(bitid) is int
             assert bitid >= 0 and bitid < 4096	# sanity check
             self._bitid = bitid
@@ -72,37 +73,29 @@ class SignalAccessor():
 
         @property
         def value(self):
-            if self._bitid is not None:
-                vstr = self._sa.signal_str()
-                ## isolate
-                if self._width == 1:
-                    bstr = vstr[-self._bitid-1]		# minus prefix due to bit0 on right hand side
-                else:
-                    assert False, f"width = {self._width}"
-                #print(f"SignalAccessor(path={self.path}) = {vstr} => {self._bitid} for {bstr}")
-                v = BinaryValue(bstr, n_bits=len(bstr))
-                return v
-
-            return self._signal.value
+            vstr = self._sa.signal_str()
+            ## isolate
+            bstr = vstr[-self._bitid-1]		# minus prefix due to bit0 on right hand side
+            print(f"SignalAccessor(label={self._label}, path={self.path}) = {vstr} => {self._bitid} for {bstr}")
+            v = BinaryValue(bstr, n_bits=len(bstr))
+            return v
 
 
         @value.setter
         def value(self, v: bool) -> None:
-            assert isinstance(v, bool)
-            nv = '1' if (v) else '0'
-            if self._bitid is not None:
-                vstr = self._sa.signal_str()
-                ## isolate
-                if self._width == 1:
-                    nstr = vstr[0:-self._bitid-1] + nv + vstr[-self._bitid:]	# minus prefix due to bit0 on right hand side
-                    print(f"vstr = {vstr}, bitid={self._bitid} nstr={nstr} left={vstr[0:-self._bitid-1]} right={vstr[-self._bitid:]} v={v}")
-                else:
-                    assert False, f"width = {self._width}"
-                print(f"SignalAccessor(path={self.path}) = {vstr} => {self._bitid} for {nstr}")
-                self._sa.signal_update(BinaryValue(nstr, n_bits=len(nstr)))
-                return None
-
-            assert False, f"set_value()"
+            assert isinstance(v, bool) or isinstance(v, str)
+            if isinstance(v, bool):
+                nv = '1' if (v) else '0'
+            else:
+                nv = v
+            assert len(nv) == 1
+            vstr = self._sa.signal_str()
+            ## isolate
+            nstr = vstr[0:-self._bitid-1] + nv + vstr[-self._bitid:]	# minus prefix due to bit0 on right hand side
+            print(f"vstr = {vstr}, bitid={self._bitid} nstr={nstr} left={vstr[0:-self._bitid-1]} right={vstr[-self._bitid:]} v={v}")
+            print(f"SignalAccessor(label={self._label}, path={self.path}) = {vstr} => {self._bitid} for {nstr}")
+            self._sa.signal_update(BinaryValue(nstr, n_bits=len(nstr)))
+            return None
 
 
         @property
@@ -123,8 +116,9 @@ class SignalAccessor():
 
     # Allow contigious bus patterns
     class AccessorBus():
-        def __init__(self, sa: 'SignalAccessor', first_bit: int, last_bit: int):
+        def __init__(self, sa: 'SignalAccessor', label: str, first_bit: int, last_bit: int):
             self._sa = sa
+            self._label = label
             assert type(first_bit) is int
             assert first_bit >= 0 and first_bit < 4096	# sanity check
             self._first_bit = first_bit
@@ -144,9 +138,8 @@ class SignalAccessor():
             bv = BinaryValue(ov, n_bits=self._width)
             print(f"GET AccessorBus.value = {str(bv)} from BinaryValue({ov})")
             ## isolate
-            print(f"SignalAccessor(path={self.path}) = {vstr} => {self._last_bit}:{self._first_bit} for {bstr}")
-            v = BinaryValue(bstr, n_bits=len(bstr))
-            return v
+            print(f"SignalAccessor(label={self._label}, path={self.path}) = {vstr} => {self._last_bit}:{self._first_bit} for {bv}")
+            return bv
 
 
         @value.setter
@@ -159,16 +152,17 @@ class SignalAccessor():
                 ## isolate
                 nv = str(bv)
                 nstr = vstr[0:-self._last_bit-1] + nv + vstr[-self._first_bit:]
-                print(f"SignalAccessor(path={self.path}) = {vstr} => {self._last_bit}:{self._first_bit} for {nstr} with {nv}")
+                print(f"SignalAccessor(label={self._label}, path={self.path}) = {vstr} => {self._last_bit}:{self._first_bit} for {nstr} with {nv}")
                 self._sa.signal_update(BinaryValue(nstr, n_bits=len(nstr)))
             elif isinstance(v, str):
+                assert len(v) == self._width
                 bv = BinaryValue(v, n_bits=self._width)
                 print(f"SET AccessorBus.value = {str(bv)}  STR")
                 vstr = self._sa.signal_str()
                 ## isolate
                 nv = str(bv)
                 nstr = vstr[0:-self._last_bit-1] + nv + vstr[-self._first_bit:]
-                print(f"SignalAccessor(path={self.path}) = {vstr} => {self._last_bit}:{self._first_bit} for {nstr} with {nv} STR")
+                print(f"SignalAccessor(label={self._label}, path={self.path}) = {vstr} => {self._last_bit}:{self._first_bit} for {nstr} with {nv} STR")
                 self._sa.signal_update(BinaryValue(nstr, n_bits=len(nstr)))
             return None
 
@@ -190,8 +184,9 @@ class SignalAccessor():
 
     # Allow non-contigious bus patterns
     class AccessorBusPattern():
-        def __init__(self, sa: 'SignalAccessor', pattern: str):
+        def __init__(self, sa: 'SignalAccessor', label: str, pattern: str):
             self._sa = sa
+            self._label = label
             return None
 
 
@@ -200,7 +195,8 @@ class SignalAccessor():
             return self._sa
 
 
-    def register(self, first_bit: int, last_bit: int = -1):
+    def register(self, label: str, first_bit: int, last_bit: int = -1):
+        assert isinstance(label, str)
         if last_bit < 0:
             last_bit = first_bit
         assert type(first_bit) is int
@@ -209,13 +205,14 @@ class SignalAccessor():
         assert width >= 1
 
         if width == 1:
-            return self.AccessorBit(self, first_bit)
+            return self.AccessorBit(self, label, first_bit)
         elif width > 1:
-            return self.AccessorBus(self, first_bit, last_bit)
+            return self.AccessorBus(self, label, first_bit, last_bit)
 
 
-    def register_pattern(self, pattern: str):
-        return AccessorBusPattern(self, pattern)
+    def register_pattern(self, label: str, pattern: str):
+        assert isinstance(label, str)
+        return AccessorBusPattern(self, label, pattern)
 
 
     def signal_str(self):
@@ -249,17 +246,12 @@ class SignalAccessor():
     # Access full signal width, FIXME move this to subclass like others via auto-selection
     @property
     def value(self):
-        if self._bitid is not None:
-            vstr = self.signal_str()
-            ## isolate
-            if self._width == 1:
-                bstr = vstr[-self._bitid-1]		# minus prefix due to bit0 on right hand side
-            else:
-                assert False, f"width = {self._width}"
-            #print(f"SignalAccessor(path={self.path}) = {vstr} => {self._bitid} for {bstr}")
-            v = BinaryValue(bstr, n_bits=len(bstr))
-            return v
-
+        #vstr = self.signal_str()
+        ## isolate
+        #bstr = vstr[-self._bitid-1]		# minus prefix due to bit0 on right hand side
+        #assert False, f"width = {self._width}"
+        ##print(f"SignalAccessor(label={self._label}, path={self.path}) = {vstr} => {self._bitid} for {bstr}")
+        #v = BinaryValue(bstr, n_bits=len(bstr))
         return self._signal.value
 
 
@@ -268,19 +260,16 @@ class SignalAccessor():
     def value(self, v: bool) -> None:
         assert isinstance(v, bool)
         nv = '1' if (v) else '0'
-        if self._bitid is not None:
-            vstr = self.signal_str()
-            ## isolate
-            if self._width == 1:
-                nstr = vstr[0:-self._bitid-1] + nv + vstr[-self._bitid:]	# minus prefix due to bit0 on right hand side
-                print(f"vstr = {vstr}, bitid={self._bitid} nstr={nstr} left={vstr[0:-self._bitid-1]} right={vstr[-self._bitid:]} v={v}")
-            else:
-                assert False, f"width = {self._width}"
-            print(f"SignalAccessor(path={self.path}) = {vstr} => {self._bitid} for {nstr}")
-            self.signal_update(BinaryValue(nstr, n_bits=len(nstr)))
-            return None
-
-        assert False, f"set_value()"
+        vstr = self.signal_str()
+        ## isolate
+        if self._width == 1:
+            nstr = vstr[0:-self._bitid-1] + nv + vstr[-self._bitid:]	# minus prefix due to bit0 on right hand side
+            print(f"vstr = {vstr}, bitid={self._bitid} nstr={nstr} left={vstr[0:-self._bitid-1]} right={vstr[-self._bitid:]} v={v}")
+        else:
+            assert False, f"width = {self._width}"
+        print(f"SignalAccessor(label={self._label}, path={self.path}) = {vstr} => {self._bitid} for {nstr}")
+        self.signal_update(BinaryValue(nstr, n_bits=len(nstr)))
+        return None
 
 
     @property
