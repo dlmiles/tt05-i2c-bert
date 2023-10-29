@@ -62,6 +62,7 @@ then
 		-e '\/assign _zz_debug_SCL/d' \
 		-e '\/wire .*debug_SCL/d' \
 		-e '\/wire .*debug_SDA/d' \
+		-e '\/^  .*put .*simulation.*/d' \
 		-i "$VERILOG_FILE"
 
 	if [ $patch_synthesis -gt 0 ]
