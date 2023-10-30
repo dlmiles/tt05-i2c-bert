@@ -19,6 +19,7 @@
 import os
 import sys
 import re
+import random
 import inspect
 from typing import Any
 from collections import namedtuple
@@ -51,57 +52,6 @@ from cocotb_stuff.Payload import *
 ###
 ###
 
-async def send_in7_oneedge(dut, in7):
-    in7_before = dut.in7.value
-    out8_before = dut.out8.value
-    clk_before, = dut.clk.value
-    in8 = try_integer(dut.in7.value, 0) << 1 | try_integer(dut.clk.value, 0)	# rebuild for log output
-    dut.in7.value = in7
-    if dut.clk.value:
-        await FallingEdge(dut.clk)
-    else:
-        await RisingEdge(dut.clk)
-    # Try to report non-clock state changes
-    out8_equal = try_compare_equal(out8_before, dut.out8.value)
-    if True or in7_before != in7 or not out8_equal:
-        out8_desc = "SAME" if(out8_equal) else "CHANGED"
-        dut._log.info("dut clk={} in7={} {} in8={} {}  =>  out8={} {} => {} {}  [{}]".format(
-            clk_before,
-            try_binary(dut.in7.value, width=7),  try_decimal_format(try_integer(dut.in7.value), '3d'),
-            try_binary(in8, width=8),            try_decimal_format(try_integer(in8), '3d'),
-            try_binary(out8_before, width=8),    try_decimal_format(try_integer(out8_before), '3d'),
-            try_binary(dut.out8.value, width=8), try_decimal_format(try_integer(dut.out8.value), '3d'),
-            out8_desc))
-
-async def send_in7(dut, in7):
-    in8 = try_integer(dut.in7.value, 0) << 1 | try_integer(dut.clk.value, 0)	# rebuild for log output
-    dut._log.info("dut out8={} in7={} in8={}".format(dut.out8.value, dut.in7.value, in8))
-    await FallingEdge(dut.clk)
-    dut.in7.value = in7
-    await RisingEdge(dut.clk)
-    dut._log.info("dut out8={} in7={} in8={}".format(dut.out8.value, dut.in7.value, in8))
-
-async def send_in8(dut, in8):
-    in7 = (in8 >> 1) & 0x7f
-    await send_in7(dut, in7)
-
-async def send_in8_oneedge(dut, in8):
-    want_clk = in8 & 0x01
-    # The rom.txt scripts expect to drive CLK as well, so we need to align edge so current
-    #  state is mismatched
-    if dut.clk.value and want_clk != 0:
-        if dut.clk.value:
-            dut._log.warning("dut ALIGN INSERT EDGE: Falling (clk={}, want_clk={})".format(dut.clk.value, want_clk))
-            await FallingEdge(dut.clk)
-        else:
-            dut._log.warning("dut ALIGN INSERT EDGE: Rising (clk={}, want_clk={})".format(dut.clk.value, want_clk))
-            await RisingEdge(dut.clk)
-    in7 = (in8 >> 1) & 0x7f
-    await send_in7_oneedge(dut, in7)
-
-async def send_sequence_in8(dut, seq):
-    for in8 in seq:
-        await send_in8(dut, in8)
 
 ###
 ###
@@ -123,6 +73,8 @@ exclude = [
     r'[\./]ANTENNA_',
     r'[\./]clkbuf_leaf_',
     r'[\./]clknet_leaf_',
+    r'[\./]clkbuf_[\d_]+__f_clk',
+    r'[\./]clknet_[\d_]+__leaf_clk',
     r'[\./]clkbuf_[\d_]+_clk',
     r'[\./]clknet_[\d_]+_clk',
     r'[\./]net\d+[\./]',
@@ -132,7 +84,11 @@ exclude = [
     r'[\./]input\d+[\./]',
     r'[\./]input\d+$',
     r'[\./]hold\d+[\./]',
-    r'[\./]hold\d+$'
+    r'[\./]hold\d+$',
+    r'[\./]max_cap\d+[\./]',
+    r'[\./]max_cap\d+$',
+    r'[\./]wire\d+[\./]',
+    r'[\./]wire\d+$'
 ]
 EXCLUDE_RE = dict(map(lambda k: (k,re.compile(k)), exclude))
 
@@ -230,76 +186,6 @@ def resolve_PUSH_PULL_MODE():
     return push_pull_mode
 
 
-def usb_spec_wall_clock_tolerance(value: int, LOW_SPEED: bool) -> tuple:
-    freq = 1500000 if(LOW_SPEED) else 12000000
-    ppm = 15000 if(LOW_SPEED) else 2500
-
-    variation = (freq * ppm) / 1000000
-    varfactor = variation / freq
-
-    tolmin = int(value - (value * varfactor))
-    tolmax = int(value + (value * varfactor))
-
-    return (tolmin, tolmax)
-
-
-def grep_file(filename: str, pattern1: str, pattern2: str) -> bool:
-    # The rx_timerLong constants that specify counter units to achieve USB
-    #  specification wall-clock timing requirements based on the 48MHz phyCd_clk.
-    #
-    # resume   HOST instigated, reverse polarity for > 20ms, then a LS EOP.
-    #            reverse polarity to what? (does this mean FS/LS)
-    #            LS EOP has a specific polarity
-    #          DEVICE instigated (optional), send K state for >1ms and <15ms.
-    #            Can only be starte after being idle >5ms
-    #               (check how this interacts with suspend state)
-    #            Host will respond within 1ms (I assume from not sending K state)
-    #          Timer 0xe933f looks to be 19.899ms @48MHz
-    #
-    # reset    HOST send SE0 for >= 10ms, DEVICE may notice after 2.5us
-    #          Timer 0x7403f looks to be 9.899ms @48MHz
-    #
-    # suspend  HOST send IDLE(J) for >= 3ms, is a suspend condition.
-    #          This is usually inhibited by SOF(FS) or KeepAlive/EOP(LS) every 1ms.
-    #          Timer 0x21fbf looks to be 2.899ms @48MHz
-    #
-    # The SIM values are 1/200 to speed up simulation testing.
-    #
-    # We have something in the GHA CI to patch this matter (ensure the production values are put back) with 'sed -i'.
-    #
-    # PRODUCTION
-    # -  assign rx_timerLong_resume = (rx_timerLong_counter == 23'h0e933f);
-    # -  assign rx_timerLong_reset = (rx_timerLong_counter == 23'h07403f);
-    # -  assign rx_timerLong_suspend = (rx_timerLong_counter == 23'h021fbf);
-    # SIM (FS 1/200)
-    #    assign rx_timerLong_resume = (rx_timerLong_counter == 23'h0012a7);
-    #    assign rx_timerLong_reset = (rx_timerLong_counter == 23'h000947);
-    #    assign rx_timerLong_suspend = (rx_timerLong_counter == 23'h0002b7);
-    # SIM (LS 1/20 current)
-    #          tried at 1/25 but it is on the limit of firing a spurious suspend from specification packet
-    #          sizes with not enough gap between tests to allow us to setup testing comfortably
-    #    assign rx_timerLong_resume = (rx_timerLong_counter == 23'h00ba8f);
-    #    assign rx_timerLong_reset = (rx_timerLong_counter == 23'h005ccf);
-    #    assign rx_timerLong_suspend = (rx_timerLong_counter == 23'h001b2f);
-    # SIM (LS 1/25 old)
-    #    assign rx_timerLong_resume = (rx_timerLong_counter == 23'h00953f);
-    #    assign rx_timerLong_reset = (rx_timerLong_counter == 23'h004a3f);
-    #    assign rx_timerLong_suspend = (rx_timerLong_counter == 23'h0015bf);
-    #
-    with open(filename) as file_in:
-        lines = []
-        for line in file_in:
-            lines.append(line.rstrip())
-        left = list(filter(lambda l: re.search(pattern1, l), lines))
-        # search for a single line match of pattern1 in the whole file (error if not found, or multiple lines)
-        if len(left) == 1:
-            # search the line found for pattern2 and return True/False on this
-            retval = re.search(pattern2, left[0])
-            #print("left={} {}".format(left[0], retval))
-            return retval
-    raise Exception(f"Unable to find any match from file: {filename} for regex {pattern1}")
-
-
 FSM = FSM({
     'phase':  'dut.i2c_bert.myState_1.fsmPhase_stateReg_string',
     'i2c':    'dut.i2c_bert.i2c.fsm_stateReg_string'
@@ -319,6 +205,22 @@ def bit(byte: int, bitid: int) -> int:
     assert (byte & ~0xff) == 0
     mask = 1 << bitid
     return (byte & mask) == mask
+
+
+def cmd_alu(len4: int = 0, read: bool = False, op_and: bool = False, op_or: bool = False, op_xor: bool = False, op_add: bool = False) -> int:
+    v = int((len4 & 0xf) << 4)
+    v |= 0x02
+    if read:
+        v |= 0x01
+    if op_and:
+        v |= 0x00 << 2
+    elif op_or:
+        v |= 0x01 << 2
+    elif op_xor:
+        v |= 0x02 << 2
+    elif op_add:
+        v |= 0x03 << 2
+    return v
 
 
 
@@ -823,7 +725,7 @@ async def test_i2c_bert(dut):
 
         # FIXME need to add sense on SCL after we try to rise
         data = await ctrl.recv_data()
-        dut._log.info("STRETCH = {str(data):x}")
+        dut._log.info(f"STRETCH = {str(data)}  0x{data:02x}")
         if not GL_TEST:	## FIXME reinstante this
             nack = await ctrl.recv_ack()
         #assert nack is None	## FIXME
@@ -838,7 +740,106 @@ async def test_i2c_bert(dut):
     ##############################################################################################
 
     if run_this_test(True):
-        debug(dut, '400_GETLATCH')
+        debug(dut, '400_GETCFG')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xc1)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        data = await ctrl.recv_data()
+        dut._log.info(f"GETCFG[0] = {str(data)}  0x{data:02x}")
+        await ctrl.send_ack()
+        # bit1  SCL MODE
+        # bit0  PULLUP MODE
+        if not GL_TEST:	## FIXME reinstate this
+            assert data == 0x01
+
+        ctrl.sda_idle()
+        assert await ctrl.check_recv_is_idle()
+
+        await ctrl.send_stop()
+
+        ctrl.idle()
+
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    if run_this_test(True):
+        debug(dut, '410_GETLEN')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xd1)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        data = await ctrl.recv_data()
+        dut._log.info(f"GETLEN[0] = {str(data)}  0x{data:02x}")
+        await ctrl.send_ack()
+        assert data == 0x00
+
+        ctrl.sda_idle()
+        debug(dut, '.')
+        assert await ctrl.check_recv_is_idle()
+
+        await ctrl.send_stop()
+
+        ctrl.idle()
+
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    if run_this_test(True):
+        debug(dut, '420_GETENDS')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xe1)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        data = await ctrl.recv_data()
+        dut._log.info(f"GETENDS[0] = {str(data)}  0x{data:02x}")
+        await ctrl.send_ack()
+        if not GL_TEST: ## FIXME reinstante this
+            assert data == 0x05
+
+        data = await ctrl.recv_data()
+        dut._log.info(f"GETENDS[1] = {str(data)}  0x{data:02x}")
+        await ctrl.send_ack()
+        assert data == 0x00
+
+        ctrl.sda_idle()
+        assert await ctrl.check_recv_is_idle()
+
+        await ctrl.send_stop()
+
+        ctrl.idle()
+
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    report_resolvable(dut, 'checkpoint01 ', depth=depth, filter=exclude_re_path)
+
+    if run_this_test(True):
+        debug(dut, '430_GETLATCH')
 
         await ctrl.send_start()
 
@@ -848,25 +849,416 @@ async def test_i2c_bert(dut):
             assert nack is ctrl.ACK
 
         data = await ctrl.recv_data()
-        dut._log.info("LATCH[0] = {str(data):x}")
+        dut._log.info(f"LATCH[0] = {str(data)}  0x{data:02x}")
         await ctrl.send_ack()
+        assert data == 0x34
 
         data = await ctrl.recv_data()
-        dut._log.info("LATCH[1] = {str(data):x}")
+        dut._log.info(f"LATCH[1] = {str(data)}  0x{data:02x}")
         await ctrl.send_ack()
+        assert data == 0x12
 
         data = await ctrl.recv_data()
-        dut._log.info("LATCH[2] = {str(data):x}")
+        dut._log.info(f"LATCH[2] = {str(data)}  0x{data:02x}")
         await ctrl.send_ack()
+        assert data == 0xa5
 
         data = await ctrl.recv_data()
-        dut._log.info("LATCH[3] = {str(data):x}")
+        dut._log.info(f"LATCH[3] = {str(data)}  0x{data:02x}")
         await ctrl.send_ack()
+        assert data == 0x5a
 
         ctrl.sda_idle()
-        assert await ctrl.check_recv_is_idle(CYCLES_PER_HALFBIT)
+        assert await ctrl.check_recv_is_idle()
 
         await ctrl.send_stop()
+
+        ctrl.idle()
+
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    if run_this_test(True):
+        debug(dut, '500_SETDATA')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xf8)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        await ctrl.send_data(0x87)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+
+    if run_this_test(True):
+        debug(dut, '510_GETDATA')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xf9)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        maxpos = 1
+        for pos in range(maxpos):
+            data = await ctrl.recv_data()
+            dut._log.info(f"GETDATA[{pos}] = {str(data)}  0x{data:02x}")
+            await ctrl.send_ack()
+            assert data == 0x87
+
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+
+    if run_this_test(True):
+        debug(dut, '520_ALU_ADD')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(cmd_alu(read=False, len4=0, op_add=True))
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        await ctrl.send_data(0x03)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+
+
+    if run_this_test(True):
+        debug(dut, '530_SEND')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xfd)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        maxpos = 2
+        for pos in range(maxpos):
+            data = await ctrl.recv_data()
+            dut._log.info(f"SEND[{pos}] = {str(data)}  0x{data:02x}")
+            nack = ctrl.ACK if pos != (maxpos - 1) else ctrl.NACK
+            await ctrl.send_acknack(nack)
+            assert data == (0x87 + 0x03)
+
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+
+    if run_this_test(True):
+        debug(dut, '540_ALU_XOR')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(cmd_alu(read=False, len4=1, op_xor=True))
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        await ctrl.send_data(0x08)	# 0x8a => 0x83
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        await ctrl.send_data(0xc0)	# 0x83 => 0x43
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+
+
+    if run_this_test(True):
+        debug(dut, '550_SEND')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xfd)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        maxpos = 3
+        for pos in range(maxpos):
+            data = await ctrl.recv_data()
+            dut._log.info(f"SEND[{pos}] = {str(data)}  0x{data:02x}")
+            nack = ctrl.ACK if pos != (maxpos - 1) else ctrl.NACK
+            await ctrl.send_acknack(nack)
+            assert data == (0x87 + 0x03) ^ 0x08 ^ 0xc0
+
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+
+    if run_this_test(True):
+        debug(dut, '560_ALU_OR')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(cmd_alu(read=False, len4=2, op_or=True))
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        await ctrl.send_data(0x01)	#
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        await ctrl.send_data(0x02)	#
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        await ctrl.send_data(0x08)	#
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+
+    if run_this_test(True):
+        debug(dut, '570_SEND')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xfd)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        maxpos = 4
+        for pos in range(maxpos):
+            data = await ctrl.recv_data()
+            dut._log.info(f"SEND[{pos}] = {str(data)}  0x{data:02x}")
+            nack = ctrl.ACK if pos != (maxpos - 1) else ctrl.NACK
+            await ctrl.send_acknack(nack)
+            assert data == ((0x87 + 0x03) ^ 0x08 ^ 0xc0) | 0x01 | 0x02 | 0x08
+
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+
+    if run_this_test(True):
+        debug(dut, '580_ALU_AND')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(cmd_alu(read=False, len4=3, op_and=True))
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        await ctrl.send_data(0xfe)	#
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        await ctrl.send_data(0xfd)	#
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        await ctrl.send_data(0x7f)	#
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        await ctrl.send_data(0xf7)	#
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+
+    if run_this_test(True):
+        debug(dut, '590_SEND')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xfd)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        maxpos = 5
+        for pos in range(maxpos):
+            data = await ctrl.recv_data()
+            dut._log.info(f"SEND[{pos}] = {str(data)}  0x{data:02x}")
+            nack = ctrl.ACK if pos != (maxpos - 1) else ctrl.NACK
+            await ctrl.send_acknack(nack)
+            assert data == (((0x87 + 0x03) ^ 0x08 ^ 0xc0) | 0x01 | 0x02 | 0x08) & 0xfe & 0xfd & 0x7f & 0xf7
+
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+
+
+    ##############################################################################################
+
+    # FIXME observe FSM cycle RESET->HUNT
+
+    if run_this_test(True):
+        debug(dut, '800_TIMEOUT_START')
+
+        ctrl.idle()
+
+        await ctrl.send_start()
+
+        ctrl.idle()
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*12)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+
+    if run_this_test(True):
+        for bitid in range(8):
+            debug(dut, f"81{bitid}_TIMEOUT_{bitid}BITS")
+
+            ctrl.idle()
+
+            await ctrl.send_start()
+            for loop in range(bitid):
+                await ctrl.send_bit(bool(random.getrandbits(1)))
+
+            ctrl.idle()
+            await ClockCycles(dut.clk, CYCLES_PER_BIT*12)
+
+            debug(dut, '')
+            await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+
+    if run_this_test(True):
+        for bitid in range(8):
+            debug(dut, f"85{bitid}_STOP_{bitid}BITS")
+
+            ctrl.idle()
+
+            await ctrl.send_start()
+            for loop in range(bitid):
+                await ctrl.send_bit(bool(random.getrandbits(1)))
+            await ctrl.send_stop();
+
+            ctrl.idle()
+            await ClockCycles(dut.clk, CYCLES_PER_BIT*12)
+
+            debug(dut, '')
+            await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+
+    if run_this_test(True):
+        debug(dut, '860_TIMEOUT_STARTSTOP')
+
+        ctrl.idle()
+
+        await ctrl.send_start()
+        await ctrl.send_stop()
+
+        ctrl.idle()
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*12)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    if run_this_test(True):
+        debug(dut, '880_STOPTEST1')
+
+        ctrl.idle()
+
+        await ctrl.send_stop()
+        # observe FSM cycle RESET->HUNT
+
+        ctrl.idle()
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+
+    if run_this_test(True):
+        debug(dut, '890_STOPTEST2')
+
+        ctrl.idle()
+
+        await ctrl.send_stop()
+        # observe FSM cycle RESET->HUNT
 
         ctrl.idle()
 
@@ -880,7 +1272,7 @@ async def test_i2c_bert(dut):
     ##############################################################################################
 
     if run_this_test(True):
-        debug(dut, '100_CMD00_RESET')
+        debug(dut, '900_CMD00_RESET')
 
 
     dut.ui_in.value = 0

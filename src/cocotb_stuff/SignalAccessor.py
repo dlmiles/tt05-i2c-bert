@@ -145,7 +145,9 @@ class SignalAccessor():
         @value.setter
         def value(self, v) -> None:
             assert isinstance(v, int) or isinstance(v, str)
-            if isinstance(v, int):
+            if isinstance(v, str):
+                assert len(v) == self._width
+            if isinstance(v, int) or isinstance(v, str):
                 bv = BinaryValue(v, n_bits=self._width)
                 print(f"SET AccessorBus.value = {str(bv)}")
                 vstr = self._sa.signal_str()
@@ -153,16 +155,6 @@ class SignalAccessor():
                 nv = str(bv)
                 nstr = vstr[0:-self._last_bit-1] + nv + vstr[-self._first_bit:]
                 print(f"SignalAccessor(label={self._label}, path={self.path}) = {vstr} => {self._last_bit}:{self._first_bit} for {nstr} with {nv}")
-                self._sa.signal_update(BinaryValue(nstr, n_bits=len(nstr)))
-            elif isinstance(v, str):
-                assert len(v) == self._width
-                bv = BinaryValue(v, n_bits=self._width)
-                print(f"SET AccessorBus.value = {str(bv)}  STR")
-                vstr = self._sa.signal_str()
-                ## isolate
-                nv = str(bv)
-                nstr = vstr[0:-self._last_bit-1] + nv + vstr[-self._first_bit:]
-                print(f"SignalAccessor(label={self._label}, path={self.path}) = {vstr} => {self._last_bit}:{self._first_bit} for {nstr} with {nv} STR")
                 self._sa.signal_update(BinaryValue(nstr, n_bits=len(nstr)))
             return None
 

@@ -14,9 +14,9 @@ import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles
 
 from cocotb_stuff import *
+from cocotb.utils import get_sim_time
 from cocotb_stuff.cocotbutil import *
 from cocotb_stuff.SignalAccessor import *
-
 
 class I2CController():
     SIGNAL_LIST = [
@@ -38,7 +38,7 @@ class I2CController():
         self.HALFEDGE = CYCLES_PER_BIT % 2 != 0
         self.CYCLES_PER_HALFBIT = int(CYCLES_PER_BIT / 2)
 
-        self._dut._log.info("I2CController(CYCLES_PER_BIT={self.CYCLES_PER_BIT}, HALFEDGE={self.HALFEDGE}, CYCLES_PER_HALFBIT={self.CYCLES_PER_HALFBIT})")
+        self._dut._log.info(f"I2CController(CYCLES_PER_BIT={self.CYCLES_PER_BIT}, HALFEDGE={self.HALFEDGE}, CYCLES_PER_HALFBIT={self.CYCLES_PER_HALFBIT})")
 
         self._sa_uio_in = SignalAccessor(dut, 'uio_in')	# FIXME pull from shared registry ?
         # This is a broken idea (over VPI) use self._sdascl
@@ -76,6 +76,8 @@ class I2CController():
         self._haveSdaLinePG = False
         self._haveSdaLineOS = False
         self._haveSdaLinePS = False
+
+        self._check_recv_idle_start = False
 
 
     def try_attach_debug_signals(self) -> bool:
@@ -274,7 +276,7 @@ class I2CController():
         return value
 
 
-    async def send_bit(self, bit: bool = False) -> None:
+    async def send_bit(self, bit: bool = False, idle_exit: bool = False) -> None:
         assert self.scl
 
         self.set_sda_scl(bit, False)
@@ -285,29 +287,80 @@ class I2CController():
         self.scl = True
         if self.HALFEDGE:
             await RisingEdge(self._dut.clk)
+        if idle_exit:
+            self.sda_idle()
         await ClockCycles(self._dut.clk, self.CYCLES_PER_HALFBIT)
 
 
     async def send_ack(self) -> None:
-        await self.send_bit(False)
+        await self.send_bit(False, idle_exit = True)
 
 
     async def send_nack(self) -> None:
-        await self.send_bit(True)
+        await self.send_bit(True, idle_exit = True)
+
+
+    async def send_acknack(self, nack: bool = False) -> None:
+        await self.send_bit(nack, idle_exit = True)
 
 
     async def check_recv_is_idle(self, cycles: int = 0, no_warn: bool = False) -> bool:
+        start_sim_time = get_sim_time()
+        self._check_recv_idle_start = start_sim_time
+
         # warn if we are not idle on our side ?
         if not no_warn and not self._sda_idle:
-            self._dut._log.warning(f"check_recv_is_idle() but SDA has not set TX idle (HiZ)")
+            self._dut._log.warning(f"check_recv_is_idle(cycles={cycles}, no_warn={no_warn}) but SDA has not set TX idle (HiZ)")
+
+        self._dut._log.warning(f"check_recv_is_idle(cycles={cycles}, no_warn={no_warn}) start={start_sim_time}")
 
         # signal scl_oe
         if self.sda_oe:
+            self._dut._log.warning(f"check_recv_is_idle(cycles={cycles}, no_warn={no_warn}) SDA OE={self.sda_oe} dut should be idle")
             return False
         for i in range(cycles):
             await ClockCycles(self._dut.clk, 1)
             if self.sda_oe:
+                self._dut._log.warning(f"check_recv_is_idle(cycles={cycles}, no_warn={no_warn}) SDA OE={self.sda_oe} dut should be idle")
                 return False
+
+        ## FIXME enable the background task to monitor
+        #task = self.task_ensure_started()
+        #task.enable = True
+
+        return True
+
+
+    async def check_recv_has_been_idle(self, cycles: int = 0, no_warn: bool = False) -> bool:
+        assert self._check_recv_idle_start is not None
+
+        # warn if we are not idle on our side ?
+        if not no_warn and not self._sda_idle:
+            self._dut._log.warning(f"check_recv_has_been_idle(cycles={cycles}, no_warn={no_warn}) but SDA has not set TX idle (HiZ)")
+
+        start_sim_time = self._check_recv_idle_start
+        self._check_recv_idle_start = None	# reset
+
+        ## FIXME enable the background task to monitor
+        #self.task_disable_if_started()
+
+        # signal scl_oe
+        if self.sda_oe:
+            return False
+        while True:
+            # FIXME compute this from cycles from clk?
+            NS = 90000	# 6 * 10
+            now = get_sim_time()
+            left = (start_sim_time + (cycles * NS)) - now
+            assert left <= 1000000, f"left too large at {left}"
+            self._dut._log.warning(f"check_recv_has_been_idle(cycles={cycles}, no_warn={no_warn}) {now} - {start_sim_time} = {left}")
+            if left <= 0:
+                break
+
+            await ClockCycles(self._dut.clk, 1)
+            if self.sda_oe:
+                return False
+
         return True
 
 
@@ -384,7 +437,7 @@ class I2CController():
     def sda_rx(self) -> bool:
         if self.GL_TEST and not self._sdascl_out.raw.value.is_resolvable:
             nv = False	# FIXME pickup RANDOM_POLICY
-            self._dut._log.warn(f"GL_TEST I2CController.sda_rx() = {str(self._sdascl_out)} [IS_NOT_RESOLABLE] using {nv}")
+            self._dut._log.warning(f"GL_TEST I2CController.sda_rx() = {str(self._sdascl_out.raw)} [IS_NOT_RESOLABLE] using {nv}")
             return nv
         return self._sdascl_out.value & 2 != 0
 
@@ -393,7 +446,7 @@ class I2CController():
     def sda_oe(self) -> bool:
         if self.GL_TEST and not self._sdascl_out.raw.value.is_resolvable:
             nv = False	# FIXME pickup RANDOM_POLICY
-            self._dut._log.warn(f"GL_TEST I2CController.sda_rx() = {str(self._sdascl_out)} [IS_NOT_RESOLABLE] using {nv}")
+            self._dut._log.warning(f"GL_TEST I2CController.sda_rx() = {str(self._sdascl_out.raw)} [IS_NOT_RESOLABLE] using {nv}")
             return nv
         return self._sdascl_oe.value & 2 != 0
 
