@@ -4,7 +4,11 @@ on:
   push:
   workflow_dispatch:
 
+env:
+  JOBS_eqy_test: false
+
 jobs:
+
   gds:
     runs-on: ubuntu-latest
     steps:
@@ -60,6 +64,7 @@ jobs:
 
 
   eqy_test:
+    if: ${{ github.event_name == 'eqy_test' }}  # ${{ env.JOBS_eqy_test == 'true' }}
     needs: gds
     runs-on: ubuntu-latest
     steps:
