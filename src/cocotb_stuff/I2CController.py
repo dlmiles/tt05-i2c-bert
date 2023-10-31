@@ -24,6 +24,7 @@ class I2CController():
         'SDA_ie', 'SDA_od', 'SDA_pp', 'SDA_og', 'SDA_pg', 'SDA_os', 'SDA_ps'
     ]
     PULLUP = True
+    HIZ = 'z'
     PREFIX = "dut.debug_"
 
     # Line state constants
@@ -216,6 +217,7 @@ class I2CController():
             warn = False
             need_assert = False
 
+            desc = ""
             if not self._sda_idle:
                 desc = f"WARN: TB is still driving SDA IE=1 so can not rx DUT"
                 warn = True
@@ -396,7 +398,7 @@ class I2CController():
         assert type(v) is bool or v is None
         self._scl_state = v if v is not None else self.PULLUP
         sda = self.sda_resolve()
-        self._sdascl.value = self.resolve_bits_state(sda, v)
+        self._sdascl.value = self.resolve_bits_state_str(sda, v)
 
 
     @property
@@ -409,7 +411,7 @@ class I2CController():
         assert type(v) is bool or v is None
         self._sda_state = v if v is not None else self.PULLUP
         scl = self.scl_resolve()
-        self._sdascl.value = self.resolve_bits_state(v, scl)
+        self._sdascl.value = self.resolve_bits_state_str(v, scl)
 
 
     @property
@@ -437,7 +439,7 @@ class I2CController():
     def sda_rx(self) -> bool:
         if self.GL_TEST and not self._sdascl_out.raw.value.is_resolvable:
             nv = False	# FIXME pickup RANDOM_POLICY
-            self._dut._log.warning(f"GL_TEST I2CController.sda_rx() = {str(self._sdascl_out.raw)} [IS_NOT_RESOLABLE] using {nv}")
+            self._dut._log.warning(f"GL_TEST I2CController.sda_rx() = {str(self._sdascl_out.raw.value)} [IS_NOT_RESOLABLE] using {nv}")
             return nv
         return self._sdascl_out.value & 2 != 0
 
@@ -446,7 +448,7 @@ class I2CController():
     def sda_oe(self) -> bool:
         if self.GL_TEST and not self._sdascl_out.raw.value.is_resolvable:
             nv = False	# FIXME pickup RANDOM_POLICY
-            self._dut._log.warning(f"GL_TEST I2CController.sda_rx() = {str(self._sdascl_out.raw)} [IS_NOT_RESOLABLE] using {nv}")
+            self._dut._log.warning(f"GL_TEST I2CController.sda_rx() = {str(self._sdascl_out.raw.value)} [IS_NOT_RESOLABLE] using {nv}")
             return nv
         return self._sdascl_oe.value & 2 != 0
 
@@ -496,18 +498,25 @@ class I2CController():
         return self.resolve_bits(sda, scl) >> SCL_BITID
 
 
-    def resolve_bit_state(self, bf: bool, when_none: str = 'z') -> str:
-        assert type(when_none) is str
+    def resolve_bit_state_str(self, bf: bool, when_none: str = None) -> str:
+        assert type(when_none) is str or when_none is None
         if bf is None:
-            return when_none
+            if when_none is None:
+                if not self.GL_TEST:
+                    return self.HIZ
+                # GL_TEST: Does not work with Z here, it propagates into gates
+                # So we default to PP=False, OD=True(pullup)
+                bf = False if self._modeIsPP else self.PULLUP
+             #return when_none
         return '1' if bf else '0'
 
 
-    def resolve_bits_state(self, sda: bool, scl: bool) -> int:
+    def resolve_bits_state_str(self, sda: bool, scl: bool, when_none: str = None) -> str:
         assert type(sda) is bool or sda is None
         assert type(scl) is bool or scl is None
-        scl_c = self.resolve_bit_state(scl)
-        sda_c = self.resolve_bit_state(sda)
+        assert type(when_none) is str or when_none is None
+        scl_c = self.resolve_bit_state_str(scl, when_none)
+        sda_c = self.resolve_bit_state_str(sda, when_none)
         return sda_c + scl_c
 
 
@@ -545,7 +554,7 @@ class I2CController():
         self._scl_state = scl if scl is not None else self.PULLUP
 
         #v = self.resolve_bits_zerobased(sda, scl)
-        v = self.resolve_bits_state(sda, scl)
+        v = self.resolve_bits_state_str(sda, scl)
         #print(f"resolve_bits_zerobased(sda={sda}, scl={scl}) = {v}")
         self._sdascl.value = v
 

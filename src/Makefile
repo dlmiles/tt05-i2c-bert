@@ -58,6 +58,9 @@ EXTRA_ARGS += --trace --trace-structs --no-timing
 # FIXME review this (for the maj3.v)
 EXTRA_ARGS += -DFUNCTIONAL
 EXTRA_ARGS += -DUNIT_DELAY
+# CLI only?
+#COMPILE_ARGS    += -DHAVE_DEBUG_I2C
+#COMPILE_ARGS    += -DUSE_POWER_PINS
 
 ifeq ($(COVERAGE),yes)
 EXTRA_ARGS += --coverage --coverage-underscore
