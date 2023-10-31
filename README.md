@@ -1,5 +1,100 @@
 ![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg) ![](../../workflows/wokwi_test/badge.svg)
 
+# TT05 I2C Birt Error Rate Tester / Echo ALU Peripheral
+
+
+Included a couple of experimental items:
+ * Latching configuration bits on ENA rise and RST_N rise.
+ * SDA line status sense on power-on and reset.
+
+GHA actions includes:
+
+ Verilator / Cocotb coverage testing and report
+ Gate Level testing
+
+
+
+## I2C Peripheral
+
+8-bit ALU with accumulator (AND, OR, XOR, ADD) on the end of I2C.
+
+Send fixed size commands.
+Received (generate) read response data.
+
+Supports Open-Drain (default) and Push Pull line modes.
+Supports SCL mode (MAJ3 or raw via register)
+
+ACK generator
+NACK generator
+
+Read/Write ALU accumulator value
+Write ALU accumulator compare (generates ACK/NACK is expected value)
+
+Read data (fixed size command, 1 to 2^12 bytes)
+Read data (unlimited length)
+Write data (fixed size command, 1 to 2^12 bytes, processes each byte through ALU)
+Write data (unlimited length)
+
+Read/Write Configuration Mode (OD/PP mode, SCL mode, SCL less
+Read/Write Timer Endstop (for clock/timeout generation)
+Read/Write Length Register (high 8 bits of 12 bits)
+Read 32bit Latched Configuration data
+
+
+## Latching configuration bits on ENA rise and RST_N rise
+
+This is an experiment to confirm if it is possible to use SKY130 dlatch on
+the input lines to store configuration data during project selection and
+
+The RST_N rise should work as the timing can be completely managed by the TT
+project selection and startup and reset procedure.
+
+The ENA rise is more experimental and due to the quiescent nature of all the
+input lines before the ENA signal rise it maybe subject to timing relationship
+during project activation.  I have not looked into the specific detail TT
+multiplexor implementation in this area to know if this idea stands any chance
+of working.
+
+It assumes the rise of initial logic state all occur at the same time as the
+ENA rise, it is hopeful that due to the nature of latches the negative setup
+time will help with being able to observe and latch the input line state at
+that time.  The purpose is to allow 16 reconfigurable configurable bits
+to be held.
+
+Latches are used instead of flipflops to improve area efficient of this
+task.  As there are 16 input lines and two events to latch that is a
+total of 32 bit of available state.
+
+
+## SDA line status sense on power-on and reset
+
+This feature is designed to interpret the SDA line status at the time of
+power-on-reset and over a few clock cycles thereafter.  This is intended to
+provide and out-of-band mechanism to trigger a diagnostic mode startup.
+
+Are per the nature of I2C a normal startup is indicated with sensing the
+expected high line state due to pull-up resistor being on the line.
+
+
+## TODO if there is time
+
+AUTOBAUD clocking mode, with no SCL.
+STRETCH tester.
+MAJ3 ticker mode (every 1, 2, 4, 8 clocks)
+
+AsciiDoc outline of command and response system
+
+A few areas not covered yet in coverage report.
+
+https://dlmiles.github.io/tt05-i2c-bert/coverage/
+
+
+![VCD Image](tt05-i2c-bert.png)
+
+
+
+###
+
 # What is Tiny Tapeout?
 
 TinyTapeout is an educational project that aims to make it easier and cheaper than ever to get your digital designs manufactured on a real chip.
