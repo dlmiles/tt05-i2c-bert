@@ -12,6 +12,9 @@ project:
     - sky130_toolbox/dffqn_negedge.v
     - sky130_toolbox/dff.v
     - sky130_toolbox/glitch_free_clock_mux.v
+    - sky130_toolbox/dffqn_negedge_async_reset.v
+    - sky130_toolbox/dff_async_reset.v
+    - sky130_toolbox/glitch_free_clock_mux_async_reset.v
     - sky130_toolbox/sky130_behavioral_udp_dlatch_pr.v
     - sky130_fd_sc_hd__dlrtp.v
     - sky130_fd_sc_hd__maj3.v
@@ -91,13 +94,13 @@ documentation:
     - none
     - none
     - none
-    - none
+    - powerOnSense
 # A description of what the bidirectional I/O pins do (e.g. I2C SDA, I2C SCL, etc)
   bidirectional:
     - none
     - none
-    - none
-    - none
+    - I2C SCL
+    - I2C SDA
     - none
     - none
     - none
