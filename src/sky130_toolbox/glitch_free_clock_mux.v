@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: Copyright 2023 Darryl Miles
 // SPDX-License-Identifier: Apache2.0
 //
+`default_nettype none
+`timescale 1ns/1ps
 
 //
 //  this is designed to switch 2 different clocks that are intended to run a while.
@@ -12,7 +14,7 @@
 //
 //
 // REF: https://www.eetimes.com/techniques-to-make-clock-switching-glitch-free/  2003
-// REGF: YouTube Electronicspedia, Glitch Free Clock Mux, 2022
+// REF: YouTube Electronicspedia, Glitch Free Clock Mux, 2022
 //
 module glitch_free_clock_mux (
     output			clk_out,

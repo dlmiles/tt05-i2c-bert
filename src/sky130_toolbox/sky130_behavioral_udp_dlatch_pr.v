@@ -1,3 +1,7 @@
+//
+// SPDX-FileCopyrightText: Copyright 2023 Darryl Miles
+// SPDX-License-Identifier: Apache2.0
+//
 `timescale 1ns / 1ps
 `default_nettype none
 

@@ -34,7 +34,7 @@ module dff (
     output reg			q
 );
 
-    always @ (posedge clk) begin
+    always @(posedge clk) begin
         q <= d;
     end
 
