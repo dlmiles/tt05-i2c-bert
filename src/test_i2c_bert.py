@@ -351,9 +351,9 @@ async def test_i2c_bert(dut):
     await ClockCycles(dut.clk, 5)
     # Validate powerOnSense captured
     if not POWER_ON_SENSE:
-        assert str(dut.uo_out.value) == '0xxxxxxx'
+        assert str(dut.uo_out.value) == sim_config.bv_replace_x('0xxxxxxx', False)
     else:
-        assert str(dut.uo_out.value) == '1xxxxxxx'
+        assert str(dut.uo_out.value) == sim_config.bv_replace_x('1xxxxxxx', False)
 
     dut.rst_n.value = 0
     await ClockCycles(dut.clk, 4)
@@ -402,9 +402,9 @@ async def test_i2c_bert(dut):
 
     # Validate powerOnSense captured
     if POWER_ON_SENSE:
-        assert str(dut.uo_out.value) == '0xxxxxxx'
+        assert str(dut.uo_out.value) == sim_config.bv_replace_x('0xxxxxxx', False)
     else:
-        assert str(dut.uo_out.value) == '1xxxxxxx'
+        assert str(dut.uo_out.value) == sim_config.bv_replace_x('1xxxxxxx', False)
 
     # Let the timer.canPowerOnReset fire
     await ClockCycles(dut.clk, 4)

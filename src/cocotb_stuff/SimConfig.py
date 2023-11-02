@@ -21,6 +21,17 @@ class SimConfig():
         ))
         return None
 
+
+    def default_value(self, with_value: bool = None):
+        if with_value is None:
+            with_value = False
+        return '1' if with_value else '0'
+
+    def bv_replace_x(self, s: str, with_value: bool = None):
+        if not self._SIM_SUPPORTS_X:
+            return s.replace('x', self.default_value(with_value))
+        return s
+
     @property
     def is_iverilog(self) -> bool:
         return self._is_iverilog
