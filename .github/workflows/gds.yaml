@@ -61,7 +61,6 @@ jobs:
         uses: dlmiles/tt-gds-action/gl_test@tt05
         with:
           RANDOM_POLICY:	random
-          PUSH_PULL_MODE:	false
 
 
   eqy_test:
