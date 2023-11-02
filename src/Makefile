@@ -64,7 +64,7 @@ EXTRA_ARGS += -Wno-WIDTHTRUNC
 EXTRA_ARGS += --trace --trace-structs --no-timing
 # FIXME review this (for the maj3.v)
 EXTRA_ARGS += -DFUNCTIONAL
-EXTRA_ARGS += -DUNIT_DELAY
+EXTRA_ARGS += -DUNIT_DELAY=
 #COMPILE_ARGS    += -DUSE_POWER_PINS
 EXTRA_ARGS += $(NOCI_EXTRA_ARGS)
 
