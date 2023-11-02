@@ -1,6 +1,6 @@
 ![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg) ![](../../workflows/wokwi_test/badge.svg)
 
-# TT05 I2C Birt Error Rate Tester / Echo ALU Peripheral
+# TT05 I2C (BERT) Bit Error Rate Tester / Echo ALU Peripheral
 
 
 Included a couple of experimental items:
@@ -9,36 +9,36 @@ Included a couple of experimental items:
 
 GHA actions includes:
 
- Verilator / Cocotb coverage testing and report
- Gate Level testing
+ * Verilator / Cocotb coverage testing and report
+ * Gate Level testing
 
 
 
 ## I2C Peripheral
 
-8-bit ALU with accumulator (AND, OR, XOR, ADD) on the end of I2C.
+ * 8-bit ALU with accumulator (AND, OR, XOR, ADD) on the end of I2C.
 
-Send fixed size commands.
-Received (generate) read response data.
+ * Send fixed size commands.
+ * Received (generate) read response data.
 
-Supports Open-Drain (default) and Push Pull line modes.
-Supports SCL mode (MAJ3 or raw via register)
+ * Supports Open-Drain (default) and Push Pull line modes.
+ * Supports SCL mode (MAJ3 or raw via register)
 
-ACK generator
-NACK generator
+ * ACK generator
+ * NACK generator
 
-Read/Write ALU accumulator value
-Write ALU accumulator compare (generates ACK/NACK is expected value)
+ * Read/Write ALU accumulator value
+ * Write ALU accumulator compare (generates ACK/NACK is expected value)
 
-Read data (fixed size command, 1 to 2^12 bytes)
-Read data (unlimited length)
-Write data (fixed size command, 1 to 2^12 bytes, processes each byte through ALU)
-Write data (unlimited length)
+ * Read data (fixed size command, 1 to 2^12 bytes)
+ * Read data (unlimited length)
+ * Write data (fixed size command, 1 to 2^12 bytes, processes each byte through ALU)
+ * Write data (unlimited length)
 
-Read/Write Configuration Mode (OD/PP mode, SCL mode, SCL less
-Read/Write Timer Endstop (for clock/timeout generation)
-Read/Write Length Register (high 8 bits of 12 bits)
-Read 32bit Latched Configuration data
+ * Read/Write Configuration Mode (OD/PP mode, SCL mode, SCL less
+ * Read/Write Timer Endstop (for clock/timeout generation)
+ * Read/Write Length Register (high 8 bits of 12 bits)
+ * Read 32bit Latched Configuration data
 
 
 ## Latching configuration bits on ENA rise and RST_N rise
@@ -72,8 +72,10 @@ This feature is designed to interpret the SDA line status at the time of
 power-on-reset and over a few clock cycles thereafter.  This is intended to
 provide and out-of-band mechanism to trigger a diagnostic mode startup.
 
-Are per the nature of I2C a normal startup is indicated with sensing the
-expected high line state due to pull-up resistor being on the line.
+As per the nature of I2C a normal startup is indicated with sensing the
+expected high line state due to pull-up resistor being on the line. To the
+powerOnSense flag is raised when SDA line is low during power-on, or very
+soon thereafter.
 
 
 ## TODO if there is time
