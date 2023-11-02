@@ -5,6 +5,14 @@
 SIM ?= icarus
 TOPLEVEL_LANG ?= verilog
 
+
+ifneq ($(CI),true)
+# Only for local simulation, at this time all CI and production removes this feature,
+#  but ideally we want it included in GHA pre-synth simulation (need to add verilog ifdef)
+NOCI_COMPILE_ARGS = -DHAVE_DEBUG_I2C
+NOCI_EXTRA_ARGS   = -DHAVE_DEBUG_I2C
+endif
+
 # normal simulation
 ifneq ($(GATES),yes)
 
@@ -48,11 +56,7 @@ endif
 ifeq ($(SIM),icarus)
 COMPILE_ARGS    += -DTIMING
 COMPILE_ARGS    += -DUNIT_DELAY=\#1
-ifneq ($(CI),true)
-# Only for local simulation, at this time all CI and production removes this feature,
-#  but ideally we want it included in GHA pre-synth simulation (need to add verilog ifdef)
-COMPILE_ARGS    += -DHAVE_DEBUG_I2C
-endif
+COMPILE_ARGS    += $(NOCI_COMPILE_ARGS)
 endif
 
 ifeq ($(SIM),verilator)
@@ -61,9 +65,8 @@ EXTRA_ARGS += --trace --trace-structs --no-timing
 # FIXME review this (for the maj3.v)
 EXTRA_ARGS += -DFUNCTIONAL
 EXTRA_ARGS += -DUNIT_DELAY
-# CLI only?
-#COMPILE_ARGS    += -DHAVE_DEBUG_I2C
 #COMPILE_ARGS    += -DUSE_POWER_PINS
+EXTRA_ARGS += $(NOCI_EXTRA_ARGS)
 
 ifeq ($(COVERAGE),yes)
 EXTRA_ARGS += --coverage --coverage-underscore
