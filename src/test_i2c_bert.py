@@ -352,9 +352,9 @@ async def test_i2c_bert(dut):
     # Validate powerOnSense captured
     if not sim_config.is_verilator:
         if not POWER_ON_SENSE:
-            assert str(dut.uo_out.value) == sim_config.bv_replace_x('0xxxxxxx', False, force=GL_TEST)
+            assert sim_config.bv_compare_x(str(dut.uio_out.value), '0???????', False, force=GL_TEST)
         else:
-            assert str(dut.uo_out.value) == sim_config.bv_replace_x('1xxxxxxx', False, force=GL_TEST)
+            assert sim_config.bv_compare_x(str(dut.uio_out.value), '1???????', False, force=GL_TEST)
 
     dut.rst_n.value = 0
     await ClockCycles(dut.clk, 4)
@@ -404,9 +404,9 @@ async def test_i2c_bert(dut):
     # Validate powerOnSense captured
     if not sim_config.is_verilator:
         if POWER_ON_SENSE:
-            assert str(dut.uo_out.value) == sim_config.bv_replace_x('0xxxxxxx', False, force=GL_TEST)
+            assert sim_config.bv_compare_x(str(dut.uio_out.value), '0???????', False, force=GL_TEST)
         else:
-            assert str(dut.uo_out.value) == sim_config.bv_replace_x('1xxxxxxx', False, force=GL_TEST)
+            assert sim_config.bv_compare_x(str(dut.uio_out.value), '1???????', False, force=GL_TEST)
 
     # Let the timer.canPowerOnReset fire
     await ClockCycles(dut.clk, 4)
@@ -680,9 +680,10 @@ async def test_i2c_bert(dut):
     if not GL_TEST:	## FIXME reinstante this
         assert nack is ctrl.ACK
 
+    assert await ctrl.check_recv_is_idle()
     await ctrl.send_stop()
-
     ctrl.idle()
+    assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
 
     debug(dut, '')
     await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
@@ -701,9 +702,10 @@ async def test_i2c_bert(dut):
         if not GL_TEST:	## FIXME reinstante this
             assert nack is ctrl.ACK
 
+        assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
-
         ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
 
         debug(dut, '')
         await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
@@ -720,9 +722,10 @@ async def test_i2c_bert(dut):
         if not GL_TEST:	## FIXME reinstante this
             assert nack is ctrl.ACK
 
+        assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
-
         ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
 
         debug(dut, '')
         await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
@@ -739,9 +742,10 @@ async def test_i2c_bert(dut):
         if not GL_TEST:	## FIXME reinstante this
             assert nack is ctrl.ACK
 
+        assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
-
         ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
 
         debug(dut, '')
         await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
@@ -758,9 +762,10 @@ async def test_i2c_bert(dut):
         if not GL_TEST:	## FIXME reinstante this
             assert nack is ctrl.NACK	# NACK
 
+        assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
-
         ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
 
         debug(dut, '')
         await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
@@ -777,9 +782,10 @@ async def test_i2c_bert(dut):
         if not GL_TEST:	## FIXME reinstante this
             assert nack is ctrl.NACK	# NACK
 
+        assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
-
         ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
 
         debug(dut, '')
         await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
@@ -797,9 +803,10 @@ async def test_i2c_bert(dut):
         if not GL_TEST:	## FIXME reinstante this
             assert nack is ctrl.NACK
 
+        assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
-
         ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
 
         debug(dut, '')
         await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
@@ -825,9 +832,10 @@ async def test_i2c_bert(dut):
             nack = await ctrl.recv_ack()
         #assert nack is None	## FIXME
 
+        assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
-
         ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
 
         debug(dut, '')
         await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
@@ -860,11 +868,8 @@ async def test_i2c_bert(dut):
 
         ctrl.sda_idle()
         assert await ctrl.check_recv_is_idle()
-
         await ctrl.send_stop()
-
         ctrl.idle()
-
         assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
 
         debug(dut, '')
@@ -890,11 +895,8 @@ async def test_i2c_bert(dut):
         ctrl.sda_idle()
         debug(dut, '.')
         assert await ctrl.check_recv_is_idle()
-
         await ctrl.send_stop()
-
         ctrl.idle()
-
         assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
 
         debug(dut, '')
@@ -925,11 +927,8 @@ async def test_i2c_bert(dut):
 
         ctrl.sda_idle()
         assert await ctrl.check_recv_is_idle()
-
         await ctrl.send_stop()
-
         ctrl.idle()
-
         assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
 
         debug(dut, '')
@@ -974,11 +973,8 @@ async def test_i2c_bert(dut):
 
         ctrl.sda_idle()
         assert await ctrl.check_recv_is_idle()
-
         await ctrl.send_stop()
-
         ctrl.idle()
-
         assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
 
         debug(dut, '')
@@ -1219,11 +1215,8 @@ async def test_i2c_bert(dut):
 
         ctrl.sda_idle()
         assert await ctrl.check_recv_is_idle()
-
         await ctrl.send_stop()
-
         ctrl.idle()
-
         assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
 
         debug(dut, '')
