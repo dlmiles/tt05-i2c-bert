@@ -352,9 +352,9 @@ async def test_i2c_bert(dut):
     # Validate powerOnSense captured
     if not sim_config.is_verilator:
         if not POWER_ON_SENSE:
-            assert str(dut.uo_out.value) == sim_config.bv_replace_x('0xxxxxxx', False)
+            assert str(dut.uo_out.value) == sim_config.bv_replace_x('0xxxxxxx', False, force=GL_TEST)
         else:
-            assert str(dut.uo_out.value) == sim_config.bv_replace_x('1xxxxxxx', False)
+            assert str(dut.uo_out.value) == sim_config.bv_replace_x('1xxxxxxx', False, force=GL_TEST)
 
     dut.rst_n.value = 0
     await ClockCycles(dut.clk, 4)
@@ -404,9 +404,9 @@ async def test_i2c_bert(dut):
     # Validate powerOnSense captured
     if not sim_config.is_verilator:
         if POWER_ON_SENSE:
-            assert str(dut.uo_out.value) == sim_config.bv_replace_x('0xxxxxxx', False)
+            assert str(dut.uo_out.value) == sim_config.bv_replace_x('0xxxxxxx', False, force=GL_TEST)
         else:
-            assert str(dut.uo_out.value) == sim_config.bv_replace_x('1xxxxxxx', False)
+            assert str(dut.uo_out.value) == sim_config.bv_replace_x('1xxxxxxx', False, force=GL_TEST)
 
     # Let the timer.canPowerOnReset fire
     await ClockCycles(dut.clk, 4)

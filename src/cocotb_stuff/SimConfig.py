@@ -27,8 +27,8 @@ class SimConfig():
             with_value = False
         return '1' if with_value else '0'
 
-    def bv_replace_x(self, s: str, with_value: bool = None):
-        if not self._SIM_SUPPORTS_X:
+    def bv_replace_x(self, s: str, with_value: bool = None, force: bool = False):
+        if not self._SIM_SUPPORTS_X or force:
             return s.replace('x', self.default_value(with_value))
         return s
 
