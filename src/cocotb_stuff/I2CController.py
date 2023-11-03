@@ -354,7 +354,8 @@ class I2CController():
             NS = 90000	# 6 * 10
             now = get_sim_time()
             left = (start_sim_time + (cycles * NS)) - now
-            assert left <= 1000000, f"left too large at {left}"
+            limit = 300000 * self.CYCLES_PER_HALFBIT
+            assert left <= limit, f"left too large at {left}"
             self._dut._log.warning(f"check_recv_has_been_idle(cycles={cycles}, no_warn={no_warn}) {now} - {start_sim_time} = {left}")
             if left <= 0:
                 break

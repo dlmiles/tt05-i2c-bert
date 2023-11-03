@@ -10,7 +10,8 @@
 #			of the simulation to speed it up.  Keeping them running is only useful to observe
 #			the timing of when an FSM changes state (if that is important for diagnostics)
 #	PUSH_PULL_MODE=true
-#	SCL_MODE=true
+#	SCL_MODE=0	# SCL source: 0=RegNext, 1=MAJ3, 2=3DFF-synchronizer, 3=ANDNOR3-unanimous
+#	DIVISOR=0	# Sample Tick divisor 0=1:1,  1=1:2,  2=1:4,  3=1:8
 #
 #  PUSH_PULL_MODE=true make
 #  PUSH_PULL_MODE=true GATES=yes make
@@ -25,6 +26,7 @@ import sys
 import re
 import random
 import inspect
+import numbers
 from typing import Any
 from collections import namedtuple
 
@@ -165,38 +167,122 @@ def resolve_GL_TEST():
     gl_test = False
     if 'GL_TEST' in os.environ:
         gl_test = True
-    if 'GATES' in os.environ and os.environ['GATES'] == 'yes':
+    if 'GATES' in os.environ and os.environ['GATES'].casefold() == 'yes':
         gl_test = True
     return gl_test
 
 
 def resolve_MONITOR_can_suspend():
     can_suspend = True	# default
-    if 'MONITOR' in os.environ and os.environ['MONITOR'] == 'no-suspend':
+    if 'MONITOR' in os.environ and os.environ['MONITOR'].casefold() == 'no-suspend':
         can_suspend = False
     return can_suspend
 
 
 def run_this_test(default_value: bool = True) -> bool:
-    if 'CI' in os.environ and os.environ['CI'] != 'false':
+    if 'CI' in os.environ and os.environ['CI'].casefold() != 'false':
         return True	# always on for CI
-    if 'ALL' in os.environ and os.environ['ALL'] != 'false':
+    if 'ALL' in os.environ and os.environ['ALL'].casefold() != 'false':
         return True
     return default_value
 
 
-def resolve_PUSH_PULL_MODE():
-    push_pull_mode = False
-    if 'PUSH_PULL_MODE' in os.environ and os.environ['PUSH_PULL_MODE'] != 'false':
+def resolve_PUSH_PULL_MODE(default_value: bool):
+    push_pull_mode = default_value
+    if 'PUSH_PULL_MODE' in os.environ and os.environ['PUSH_PULL_MODE'].casefold() != 'false':
         push_pull_mode = True
     return push_pull_mode
 
 
-def resolve_SCL_MODE():
-    scl_mode = False
-    if 'SCL_MODE' in os.environ and os.environ['SCL_MODE'] != 'false':
-        scl_mode = True
+def resolve_SCL_MODE(default_value: int):
+    scl_mode = default_value
+    if 'SCL_MODE' in os.environ and os.environ['SCL_MODE'].casefold() != 'default':
+        scl_mode = int(os.environ['SCL_MODE'])
     return scl_mode
+
+
+def resolve_DIV12(default_value: int):
+    div12 = default_value
+    if 'DIV12' in os.environ and os.environ['DIV12'].casefold() != 'default':
+        div12 = int(os.environ['DIV12'])
+    return div12
+
+
+def resolve_DIVISOR(default_value: int):
+    div12 = default_value
+    if 'DIVISOR' in os.environ and os.environ['DIVISOR'].casefold() != 'default':
+        div12 = int(os.environ['DIVISOR'])
+    return div12
+
+
+def SCL_MODE_description(v: int) -> str:
+    if v == 0:
+        return 'RegNext'
+    elif v == 1:
+        return 'MAJ3'
+    elif v == 2:
+        return '3DFF-synchronizer'
+    elif v == 3:
+        return 'ANDNOR3-unanimous'
+    else:
+        return 'UNKNOWN'
+
+
+def DIVISOR_description(v: int) -> str:
+    if v == 0:
+        return '1:1'
+    elif v == 1:
+        return '1:2'
+    elif v == 2:
+        return '1:4'
+    elif v == 3:
+        return '1:8'
+    else:
+        return 'UNKNOWN'
+
+
+def resolve_CYCLES_PER_BIT(default_value):
+    v = default_value
+    if 'CYCLES_PER_BIT' in os.environ and os.environ['CYCLES_PER_BIT'].casefold() != 'default':
+        v = int(os.environ['CYCLES_PER_BIT'])
+
+    vv = float(v)
+    vv2 = float(v * 2)
+    if vv.is_integer():
+        cpb = int(vv)
+        chb = int(cpb / 2)
+        half = False if (cpb % 2) == 0 else True
+    elif vv2.is_integer():	# double
+        cpb = int(vv)
+        chb = int(cpb / 2)
+        half = False if (cpb % 2) == 0 else True
+    else:
+        assert False, f"CYCLES_PER_BIT={CYCLES_PER_BIT} is not supported, needs to be >= 2 and with 0.5 granularity"
+
+    # Is this the best way, maybe there is NamedTuple
+    class CFG():
+        def __init__(self, cpb, chh, half):
+            self._CYCLES_PER_BIT = cpb
+            self._CYCLES_PER_HALFBIT = chb
+            self._HALF_EDGE = half
+            return None
+
+        @property
+        def CYCLES_PER_BIT(self):
+            return self._CYCLES_PER_BIT
+
+        @property
+        def CYCLES_PER_HALFBIT(self):
+            return self._CYCLES_PER_HALFBIT
+
+        @property
+        def HALF_EDGE(self):
+            return self._HALF_EDGE
+
+        def __str__(self):
+            return f"CFG(CYCLES_PER_BIT={self.CYCLES_PER_BIT}, CYCLES_PER_HALFBIT={self.CYCLES_PER_HALFBIT}, HALF_EDGE={self.HALF_EDGE})"
+
+    return CFG(cpb, chb, half)
 
 
 FSM = FSM({
@@ -205,9 +291,22 @@ FSM = FSM({
 })
 
 
+def frequency_pretty(v) -> str:
+    assert type(v) is int or type(v) is float
+    if v > 1000000:
+        v = round(v / 1000000, 3)
+        return f"{v:.3f} Mbps"
+    elif v > 1000:
+        v = round(v / 1000, 3)
+        return f"{v:.3f} Kbps"
+    else:
+        v = round(v, 3)
+        return f"{v:.3f} bps"
+
+
 def gha_dumpvars(dut):
     dumpvars = ['CI', 'GL_TEST', 'FUNCTIONAL', 'USE_POWER_PINS', 'SIM', 'UNIT_DELAY', 'SIM_BUILD', 'GATES', 'ICARUS_BIN_DIR', 'COCOTB_RESULTS_FILE', 'TESTCASE', 'TOPLEVEL', 'DEBUG', 'LOW_SPEED']
-    if 'CI' in os.environ and os.environ['CI'] != 'false':
+    if 'CI' in os.environ and os.environ['CI'].casefold() != 'false':
         for k in os.environ.keys():
             if k in dumpvars:
                 dut._log.info("{}={}".format(k, os.environ[k]))
@@ -244,9 +343,46 @@ async def test_i2c_bert(dut):
 
     sim_config = SimConfig(dut, cocotb)
 
-    PUSH_PULL_MODE = resolve_PUSH_PULL_MODE()
-    SCL_MODE = resolve_SCL_MODE()
-    DIV12 = 0xfff
+    PUSH_PULL_MODE = resolve_PUSH_PULL_MODE(False)
+    SCL_MODE = resolve_SCL_MODE(0)
+    DIV12 = resolve_DIV12(0)  # (0xfff)
+    assert (DIV12 & ~0xfff) == 0
+    DIVISOR = resolve_DIVISOR(0)
+    assert (DIVISOR & ~0x3) == 0
+
+    TICKS_PER_BIT = 3 #int(CLOCK_FREQUENCY / SCL_CLOCK_FREQUENCY)
+
+    #CYCLES_PER_BIT = 3
+    #CYCLES_PER_HALFBIT = 1
+    #HALF_EDGE = True
+
+    #CYCLES_PER_BIT = 6
+    #CYCLES_PER_HALFBIT = 3
+    #HALF_EDGE = False
+
+    #CYCLES_PER_BIT = 8
+    #CYCLES_PER_HALFBIT = 4
+    #HALF_EDGE = False
+
+    #CYCLES_PER_BIT = 12
+    #CYCLES_PER_HALFBIT = 6
+    #HALF_EDGE = False
+
+    # This is on edges of 1:8 (we good to refine some aspects)
+    #CYCLES_PER_BIT = 24
+    #CYCLES_PER_HALFBIT = 12
+    #HALF_EDGE = False
+
+    #CYCLES_PER_BIT = 26
+    #CYCLES_PER_HALFBIT = 13
+    #HALF_EDGE = False
+
+    # 25 chosen at it puts us at 400Kbps for 10MHz (which seems achives "Fast-Mode")
+    CFG = resolve_CYCLES_PER_BIT(25)
+    dut._log.info(f"{CFG}")
+    CYCLES_PER_BIT      = CFG.CYCLES_PER_BIT
+    CYCLES_PER_HALFBIT  = CFG.CYCLES_PER_HALFBIT
+    HALF_EDGE           = CFG.HALF_EDGE
 
     # The DUT uses a divider from the master clock at this time
     CLOCK_FREQUENCY = 10000000
@@ -318,12 +454,17 @@ async def test_i2c_bert(dut):
         assert dut.dut.latched_ena_ui_in.value == LATCHED_16
         assert dut.dut.latched_ena_uio_in.value == LATCHED_24
 
+    # Setup DIVISOR (for powerOnSense test)
+    dut.ui_in.value = 0x00 | DIVISOR
+
     # We waggle this to see if it resolves RANDOM_POLICY=random(iverilog)
     #  where dut.rst_n=0 and dut.dut.rst_n=1 got assigned, need to understand more here
     #  as I would have expected setting dut.rst_n=anyvalue and letting SIM run would
     #  have propagated into dut.dut.rst_n.
     dut.rst_n.value = 0
-    if not GL_TEST:
+    if not GL_TEST and False:		## DISABLED ALL ENV
+        # TODO I switch to using an _async_reset form of this the todo is to go back to the
+        #   original form and manage GL testing concerns
         # sky130_toolbox/glitch_free_clock_mux.v:
         # Uninitialized internal states that depend on each other need to work themselves out.
         dut.dut.i2c_bert.i2c.clockGate.dff01q.value = False
@@ -340,6 +481,7 @@ async def test_i2c_bert(dut):
 
     POWER_ON_SENSE = bool(random.getrandbits(1))
 
+    dut._log.info(f"Checking #1 powerOnSense state setup {not POWER_ON_SENSE}")
     if not POWER_ON_SENSE:
         dut.uio_in.value = BinaryValue('xxxx1xxx')	# SDA=0 means special power-on condition
     else:
@@ -348,7 +490,8 @@ async def test_i2c_bert(dut):
     await ClockCycles(dut.clk, 1)
 
     # Let the timer.canPowerOnReset fire
-    await ClockCycles(dut.clk, 5)
+    await ClockCycles(dut.clk, (1 << (DIVISOR+2))+CYCLES_PER_HALFBIT)	# (ticks*4)+HALFBIT
+    dut._log.info(f"Checking #1 powerOnSense state check {str(dut.uio_out.value)} expecting bit7 = {POWER_ON_SENSE}")
     # Validate powerOnSense captured
     if not sim_config.is_verilator:
         if not POWER_ON_SENSE:
@@ -363,9 +506,8 @@ async def test_i2c_bert(dut):
 
     # Reset state setup
     v = 0
-    # LATCHED not the same layout as GETCFG
-    if SCL_MODE:
-        v |= 0x02
+    # LATCHED is now the same layout as GETCFG
+    v = SCL_MODE & 0x3
     if PUSH_PULL_MODE:
         v |= 0x04
     if DIV12 != 0:
@@ -392,14 +534,20 @@ async def test_i2c_bert(dut):
         dut.dut.latched_rst_n_ui_in.value == LATCHED_00
         dut.dut.latched_rst_n_uio_in.value == LATCHED_08
 
+    # Setup DIVISOR
+    dut.ui_in.value = 0x00 | DIVISOR
+
     # Set state a clock or so after start
     await ClockCycles(dut.clk, 1)
 
+    dut._log.info(f"Checking #2 powerOnSense state setup {POWER_ON_SENSE}")
     if POWER_ON_SENSE:
         dut.uio_in.value = BinaryValue('xxxx1xxx')	# SDA=0 means special power-on condition
     else:
         dut.uio_in.value = BinaryValue('xxxx0xxx')	# SDA=1 means nomimal power-on condition
-    await ClockCycles(dut.clk, 6)
+    await ClockCycles(dut.clk, (1 << (DIVISOR+2))+CYCLES_PER_HALFBIT)	# (ticks*4)+HALFBIT
+
+    dut._log.info(f"Checking #2 powerOnSense state check {str(dut.uio_out.value)} expecting bit7 = {not POWER_ON_SENSE}")
 
     # Validate powerOnSense captured
     if not sim_config.is_verilator:
@@ -409,18 +557,10 @@ async def test_i2c_bert(dut):
             assert sim_config.bv_compare_x(str(dut.uio_out.value), '1???????', False, force=GL_TEST)
 
     # Let the timer.canPowerOnReset fire
-    await ClockCycles(dut.clk, 4)
+    await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
 
     debug(dut, '001_TEST')
 
-    TICKS_PER_BIT = 3 #int(CLOCK_FREQUENCY / SCL_CLOCK_FREQUENCY)
-
-    #CYCLES_PER_BIT = 3
-    #CYCLES_PER_HALFBIT = 1
-    #HALF_EDGE = True
-    CYCLES_PER_BIT = 6
-    CYCLES_PER_HALFBIT = 3
-    HALF_EDGE = False
 
     ctrl = I2CController(dut, CYCLES_PER_BIT = CYCLES_PER_BIT, pp = PUSH_PULL_MODE, GL_TEST = GL_TEST)
     ctrl.try_attach_debug_signals()
@@ -488,7 +628,7 @@ async def test_i2c_bert(dut):
     ctrl.set_sda_scl(True, True)
     await ClockCycles(dut.clk, CYCLES_PER_BIT)
 
-    # PREMABLE (scl toggle test)
+    # PREMABLE (scl toggle test, false START test)
     ctrl.scl = False
     await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
     ctrl.scl = True
@@ -497,10 +637,11 @@ async def test_i2c_bert(dut):
     await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
     ctrl.scl = True
     await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+    # FIXME observe FSM is in HUNT and does not change state at any point
 
     await ClockCycles(dut.clk, CYCLES_PER_BIT)
 
-    # PREMABLE (scl=0, sda toggle test)
+    # PREMABLE (scl=0, sda toggle test, false START test)
     await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
     ctrl.scl = False	# SCL
     await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
@@ -514,12 +655,14 @@ async def test_i2c_bert(dut):
     await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
     ctrl.scl = True	# SCL
     await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
+    # FIXME observe FSM is in HUNT and does not change state at any point
 
     ctrl.idle()
     await ClockCycles(dut.clk, CYCLES_PER_BIT)
     await ClockCycles(dut.clk, CYCLES_PER_BIT)
 
-    ctrl.set_sda_scl(True, True)
+    # Need to resolve Z state into signal
+    ctrl.set_sda_scl(True, True)	# START transition (simulation setup)
     await ClockCycles(dut.clk, CYCLES_PER_HALFBIT)
 
     # START
@@ -690,10 +833,10 @@ async def test_i2c_bert(dut):
 
     ##############################################################################################
 
-    report_resolvable(dut, 'checkpoint200 ', depth=depth, filter=exclude_re_path)
+    report_resolvable(dut, 'checkpoint090 ', depth=depth, filter=exclude_re_path)
 
     if run_this_test(True):
-        debug(dut, '200_RESET')
+        debug(dut, '090_RESET')
 
         await ctrl.send_start()
 
@@ -713,7 +856,7 @@ async def test_i2c_bert(dut):
     ##############################################################################################
 
     if run_this_test(True):
-        debug(dut, '210_ACK_wr')
+        debug(dut, '100_ACK_wr')
 
         await ctrl.send_start()
 
@@ -733,7 +876,7 @@ async def test_i2c_bert(dut):
     ##############################################################################################
 
     if run_this_test(True):
-        debug(dut, '220_ACK_rd')
+        debug(dut, '110_ACK_rd')
 
         await ctrl.send_start()
 
@@ -753,7 +896,7 @@ async def test_i2c_bert(dut):
     ##############################################################################################
 
     if run_this_test(True):
-        debug(dut, '230_NACK_wr')
+        debug(dut, '120_NACK_wr')
 
         await ctrl.send_start()
 
@@ -773,7 +916,7 @@ async def test_i2c_bert(dut):
     ##############################################################################################
 
     if run_this_test(True):
-        debug(dut, '240_NACK_rd')
+        debug(dut, '130_NACK_rd')
 
         await ctrl.send_start()
 
@@ -793,57 +936,7 @@ async def test_i2c_bert(dut):
     ##############################################################################################
 
     if run_this_test(True):
-        debug(dut, '270_AUTOBAUD')
-
-        await ctrl.send_start()
-
-        await ctrl.send_data(0xcc)
-        # FIXME this NACKs as noimpl
-        nack = await ctrl.recv_ack(ctrl.NACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.NACK
-
-        assert await ctrl.check_recv_is_idle()
-        await ctrl.send_stop()
-        ctrl.idle()
-        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
-
-        debug(dut, '')
-        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
-
-    ##############################################################################################
-
-    if run_this_test(True):
-        debug(dut, '300_STRETCH_rd')
-
-        await ctrl.send_start()
-
-        await ctrl.send_data(0xc8)
-        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
-
-        # FIXME this ACKs but noimpl
-
-        # FIXME need to add sense on SCL after we try to rise
-        data = await ctrl.recv_data()
-        dut._log.info(f"STRETCH = {str(data)}  0x{data:02x}")
-        if not GL_TEST:	## FIXME reinstante this
-            nack = await ctrl.recv_ack()
-        #assert nack is None	## FIXME
-
-        #assert await ctrl.check_recv_is_idle()
-        await ctrl.send_stop()
-        ctrl.idle()
-        #assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
-
-        debug(dut, '')
-        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
-
-    ##############################################################################################
-
-    if run_this_test(True):
-        debug(dut, '400_GETCFG')
+        debug(dut, '140_GETCFG')
 
         await ctrl.send_start()
 
@@ -855,15 +948,13 @@ async def test_i2c_bert(dut):
         data = await ctrl.recv_data()
         dut._log.info(f"GETCFG[0] = {str(data)}  0x{data:02x}")
         await ctrl.send_ack()
-        # GETCFG not the same layout as LATCHED
-        # bit1  SCL MODE
-        # bit0  PULLUP MODE
-        v = 0
-        if SCL_MODE:
-            v |= 0x02	# bit1
+        # GETCFG is now the same layout as LATCHED
+        # bit0.1  SCL MODE
+        # bit2    PULLUP MODE
+        v = SCL_MODE & 0x3	# [1:0]
         if PUSH_PULL_MODE:
-            v |= 0x01	# bit0
-        if not GL_TEST:	## FIXME reinstate this
+            v |= 0x04		# bit2
+        if not GL_TEST:		## FIXME reinstate this
             assert data == v
 
         ctrl.sda_idle()
@@ -878,7 +969,7 @@ async def test_i2c_bert(dut):
     ##############################################################################################
 
     if run_this_test(True):
-        debug(dut, '410_GETLEN')
+        debug(dut, '150_GETLEN')
 
         await ctrl.send_start()
 
@@ -905,7 +996,7 @@ async def test_i2c_bert(dut):
     ##############################################################################################
 
     if run_this_test(True):
-        debug(dut, '420_GETENDS')
+        debug(dut, '160_GETENDS')
 
         await ctrl.send_start()
 
@@ -918,12 +1009,12 @@ async def test_i2c_bert(dut):
         dut._log.info(f"GETENDS[0] = {str(data)}  0x{data:02x}")
         await ctrl.send_ack()
         if not GL_TEST: ## FIXME reinstante this
-            assert data == DIV12 & 0xff # 0x05
+            assert data == (DIV12 & 0xff) ^ 0xff # 0x05
 
         data = await ctrl.recv_data()
         dut._log.info(f"GETENDS[1] = {str(data)}  0x{data:02x}")
         await ctrl.send_ack()
-        assert data == (DIV12 & 0xf00) >> 8 # 0x00
+        assert data == ((DIV12 & 0xf00) >> 8) ^ 0xf # 0x00
 
         ctrl.sda_idle()
         assert await ctrl.check_recv_is_idle()
@@ -939,7 +1030,7 @@ async def test_i2c_bert(dut):
     report_resolvable(dut, 'checkpoint430 ', depth=depth, filter=exclude_re_path)
 
     if run_this_test(True):
-        debug(dut, '430_GETLATCH')
+        debug(dut, '170_GETLATCH')
 
         await ctrl.send_start()
 
@@ -983,7 +1074,33 @@ async def test_i2c_bert(dut):
     ##############################################################################################
 
     if run_this_test(True):
-        debug(dut, '500_SETDATA')
+        debug(dut, '180_GETLED')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xd1)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        data = await ctrl.recv_data()
+        dut._log.info(f"GETLED[0] = {str(data)}  0x{data:02x}")
+        await ctrl.send_ack()
+        assert data == 0x00
+
+        ctrl.sda_idle()
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    if run_this_test(True):
+        debug(dut, '200_SETDATA')
 
         await ctrl.send_start()
 
@@ -992,7 +1109,7 @@ async def test_i2c_bert(dut):
         if not GL_TEST:	## FIXME reinstante this
             assert nack is ctrl.ACK
 
-        data = 0x87
+        data = 0x69
         await ctrl.send_data(data)
         dut._log.info(f"SETDATA[0] = {str(data)}  0x{data:02x}")
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
@@ -1009,7 +1126,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '510_GETDATA')
+        debug(dut, '205_GETDATA')
 
         await ctrl.send_start()
 
@@ -1023,7 +1140,7 @@ async def test_i2c_bert(dut):
             data = await ctrl.recv_data()
             dut._log.info(f"GETDATA[{pos}] = {str(data)}  0x{data:02x}")
             await ctrl.send_ack()
-            assert data == 0x87
+            assert data == 0x69
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1035,7 +1152,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '520_SETENDS')
+        debug(dut, '210_SETENDS')
 
         await ctrl.send_start()
 
@@ -1044,14 +1161,14 @@ async def test_i2c_bert(dut):
         if not GL_TEST:	## FIXME reinstante this
             assert nack is ctrl.ACK
 
-        data = 0x23
+        data = 0xed
         await ctrl.send_data(data)
         dut._log.info(f"SETENDS[0] = {str(data)}  0x{data:02x}")
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
         if not GL_TEST:	## FIXME reinstante this
             assert nack is ctrl.ACK
 
-        data = 0x01
+        data = 0x0f
         await ctrl.send_data(data)
         dut._log.info(f"SETENDS[1] = {str(data)}  0x{data:02x}")
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
@@ -1068,7 +1185,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '530_GETENDS')
+        debug(dut, '215_GETENDS')
 
         await ctrl.send_start()
 
@@ -1080,12 +1197,12 @@ async def test_i2c_bert(dut):
         data = await ctrl.recv_data()
         dut._log.info(f"GETENDS[0] = {str(data)}  0x{data:02x}")
         await ctrl.send_ack()
-        assert data == 0x23
+        assert data == 0xed
 
         data = await ctrl.recv_data()
         dut._log.info(f"GETENDS[0] = {str(data)}  0x{data:02x}")
         await ctrl.send_ack()
-        assert data == 0x01
+        assert data == 0x0f
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1097,7 +1214,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '540_SETLEN')
+        debug(dut, '220_SETLEN')
 
         await ctrl.send_start()
 
@@ -1123,7 +1240,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '550_GETLEN')
+        debug(dut, '225_GETLEN')
 
         await ctrl.send_start()
 
@@ -1146,8 +1263,8 @@ async def test_i2c_bert(dut):
         await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
 
 
-    if run_this_test(True):
-        debug(dut, '560_SETLEN')
+    if run_this_test(False) and False:	# DISABLED ALL ENV
+        debug(dut, '229_SETLEN_RESTORE')
 
         await ctrl.send_start()
 
@@ -1173,7 +1290,58 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '570_SETCFG')
+        debug(dut, '230_SETLED')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xf4)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        data = 0x78	# "t" letter, for TT, or Test!
+        await ctrl.send_data(data)
+        dut._log.info(f"SETLED[0] = {str(data)}  0x{data:02x}")
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+
+    if run_this_test(True):
+        debug(dut, '235_GETLED')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xf5)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        data = await ctrl.recv_data()
+        dut._log.info(f"GETLED[{pos}] = {str(data)}  0x{data:02x}")
+        await ctrl.send_ack()
+        assert data == 0x78
+
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+
+
+    if run_this_test(True):
+        debug(dut, '240_SETCFG')
 
         await ctrl.send_start()
 
@@ -1199,7 +1367,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '580_GETCFG')
+        debug(dut, '245_GETCFG')
 
         await ctrl.send_start()
 
@@ -1223,8 +1391,8 @@ async def test_i2c_bert(dut):
         await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
 
 
-    if run_this_test(True):
-        debug(dut, '590_SETCFG')
+    if run_this_test(False) and False:	# DISABLED ALL ENV
+        debug(dut, '249_SETCFG_RESTORE')
 
         await ctrl.send_start()
 
@@ -1234,13 +1402,12 @@ async def test_i2c_bert(dut):
             assert nack is ctrl.ACK
 
         # GETCFG not the same layout as LATCHED
-        # bit1  SCL MODE
-        # bit0  PULLUP MODE
+        # bit0..1  SCL MODE
+        # bit2     PULLUP MODE
         v = 0
-        if SCL_MODE:
-            v |= 0x02	# bit1
+        v = SCL_MODE & 0x3	# [1:0]
         if PUSH_PULL_MODE:
-            v |= 0x01	# bit0
+            v |= 0x04	# bit2
         if not GL_TEST:	## FIXME reinstate this
             assert data == v
         data = v
@@ -1258,12 +1425,59 @@ async def test_i2c_bert(dut):
         debug(dut, '')
         await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
 
+    ##############################################################################################
+
+    # After disrupting settings issue another reset
+    # FIXME ideally go and check and retest the defaults were restored
+    if run_this_test(True):
+        debug(dut, '299_RESET')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xf0)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
 
     ##############################################################################################
 
 
     if run_this_test(True):
-        debug(dut, '600_ALU_ADD')
+        debug(dut, '300_SETDATA')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xf8)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        data = 0x87
+        await ctrl.send_data(data)
+        dut._log.info(f"SETDATA[0] = {str(data)}  0x{data:02x}")
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+
+    if run_this_test(True):
+        debug(dut, '300_ALU_ADD')
 
         await ctrl.send_start()
 
@@ -1287,7 +1501,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '610_GETSEND')
+        debug(dut, '310_GETSEND')
 
         await ctrl.send_start()
 
@@ -1314,7 +1528,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '620_ALU_XOR')
+        debug(dut, '320_ALU_XOR')
 
         await ctrl.send_start()
 
@@ -1343,7 +1557,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '630_GETSEND')
+        debug(dut, '330_GETSEND')
 
         await ctrl.send_start()
 
@@ -1370,7 +1584,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '640_ALU_OR')
+        debug(dut, '340_ALU_OR')
 
         await ctrl.send_start()
 
@@ -1404,7 +1618,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '650_GETSEND')
+        debug(dut, '350_GETSEND')
 
         await ctrl.send_start()
 
@@ -1431,7 +1645,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '660_ALU_AND')
+        debug(dut, '360_ALU_AND')
 
         await ctrl.send_start()
 
@@ -1470,7 +1684,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '670_GETSEND')
+        debug(dut, '370_GETSEND')
 
         await ctrl.send_start()
 
@@ -1500,7 +1714,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '700_ALUR_ADD')
+        debug(dut, '500_ALUR_ADD')
 
         await ctrl.send_start()
 
@@ -1524,7 +1738,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '710_SETRECV')
+        debug(dut, '510_SETRECV')
 
         await ctrl.send_start()
 
@@ -1552,7 +1766,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '720_ALUR_XOR')
+        debug(dut, '520_ALUR_XOR')
 
         await ctrl.send_start()
 
@@ -1581,7 +1795,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '730_SETRECV')
+        debug(dut, '530_SETRECV')
 
         await ctrl.send_start()
 
@@ -1609,7 +1823,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '740_ALUR_OR')
+        debug(dut, '540_ALUR_OR')
 
         await ctrl.send_start()
 
@@ -1643,7 +1857,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '750_SETRECV')
+        debug(dut, '550_SETRECV')
 
         await ctrl.send_start()
 
@@ -1671,7 +1885,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '760_ALUR_AND')
+        debug(dut, '560_ALUR_AND')
 
         await ctrl.send_start()
 
@@ -1710,7 +1924,7 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '770_SETRECV')
+        debug(dut, '570_SETRECV')
 
         await ctrl.send_start()
 
@@ -1740,14 +1954,71 @@ async def test_i2c_bert(dut):
 
     ##############################################################################################
 
+    if run_this_test(True):
+        debug(dut, '800_AUTOBAUD')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xcc)
+        # FIXME this NACKs as noimpl
+        nack = await ctrl.recv_ack(ctrl.NACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.NACK
+
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    if run_this_test(True):
+        debug(dut, '850_STRETCH_rd')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0xc8)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        if not GL_TEST:	## FIXME reinstante this
+            assert nack is ctrl.ACK
+
+        # FIXME this ACKs but noimpl
+
+        # FIXME need to add sense on SCL after we try to rise
+        data = await ctrl.recv_data()
+        dut._log.info(f"STRETCH = {str(data)}  0x{data:02x}")
+        if not GL_TEST:	## FIXME reinstante this
+            nack = await ctrl.recv_ack()
+        #assert nack is None	## FIXME
+
+        #assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        #assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+
+    ##############################################################################################
+
+    ## FIXME need to cover different kinds of STOP (with/without extra SCL=0)
+    ## FIXME need to cover different kinds of START (SDA=0>1 and SCL=0>1 transition, followed by SDA=1>0)
+    ## FIXME need to cover different kinds of START (SDA=0>1 then SCL=0>1 transition, followed by SDA=1>0)
+    ## FIXME need to cover different kinds of START (SCL=0>1 then SDA=0>1 transition, followed by SDA=1>0)
+
     # FIXME observe FSM cycle RESET->HUNT
 
     if run_this_test(True):
-        debug(dut, '800_TIMEOUT_START')
+        debug(dut, '940_TIMEOUT_START')
 
         ctrl.idle()
 
         await ctrl.send_start()
+        # FIXME check timeoutError actually occurs (within a reasonable time)
 
         ctrl.idle()
         await ClockCycles(dut.clk, CYCLES_PER_BIT*12)
@@ -1758,13 +2029,15 @@ async def test_i2c_bert(dut):
 
     if run_this_test(True):
         for bitid in range(8):
-            debug(dut, f"81{bitid}_TIMEOUT_{bitid}BITS")
+            debug(dut, f"95{bitid}_TIMEOUT_{bitid}BITS")
 
             ctrl.idle()
 
             await ctrl.send_start()
             for loop in range(bitid):
                 await ctrl.send_bit(bool(random.getrandbits(1)))
+
+            # FIXME check timeoutError actually occurs (within a reasonable time)
 
             ctrl.idle()
             await ClockCycles(dut.clk, CYCLES_PER_BIT*12)
@@ -1775,7 +2048,7 @@ async def test_i2c_bert(dut):
 
     if run_this_test(True):
         for bitid in range(8):
-            debug(dut, f"85{bitid}_STOP_{bitid}BITS")
+            debug(dut, f"96{bitid}_STOP_{bitid}BITS")
 
             ctrl.idle()
 
@@ -1783,6 +2056,8 @@ async def test_i2c_bert(dut):
             for loop in range(bitid):
                 await ctrl.send_bit(bool(random.getrandbits(1)))
             await ctrl.send_stop();
+
+            # FIXME check FSM returns to HUNT
 
             ctrl.idle()
             await ClockCycles(dut.clk, CYCLES_PER_BIT*12)
@@ -1792,12 +2067,14 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '860_TIMEOUT_STARTSTOP')
+        debug(dut, '970_TIMEOUT_STARTSTOP')
 
         ctrl.idle()
 
         await ctrl.send_start()
         await ctrl.send_stop()
+
+        # FIXME check FSM returns to HUNT
 
         ctrl.idle()
         await ClockCycles(dut.clk, CYCLES_PER_BIT*12)
@@ -1808,12 +2085,12 @@ async def test_i2c_bert(dut):
     ##############################################################################################
 
     if run_this_test(True):
-        debug(dut, '880_STOPTEST1')
+        debug(dut, '980_STOPTEST1')
 
         ctrl.idle()
 
         await ctrl.send_stop()
-        # observe FSM cycle RESET->HUNT
+        # FIXME observe FSM cycle RESET->HUNT
 
         ctrl.idle()
 
@@ -1822,12 +2099,12 @@ async def test_i2c_bert(dut):
 
 
     if run_this_test(True):
-        debug(dut, '890_STOPTEST2')
+        debug(dut, '990_STOPTEST2')
 
         ctrl.idle()
 
         await ctrl.send_stop()
-        # observe FSM cycle RESET->HUNT
+        # FIXME observe FSM cycle RESET->HUNT
 
         ctrl.idle()
 
@@ -1841,9 +2118,9 @@ async def test_i2c_bert(dut):
     ##############################################################################################
 
     if run_this_test(True):
-        debug(dut, '900_CMD00_RESET')
+        debug(dut, '990_CMD00_RESET')
 
-
+    # LATCH reset
     dut.ui_in.value = 0
     dut.uio_in.value = 0
     await ClockCycles(dut.clk, 4)
@@ -1876,4 +2153,26 @@ async def test_i2c_bert(dut):
     await ClockCycles(dut.clk, 32)
 
     report_resolvable(dut, filter=exclude_re_path)
+
+    sclk_est_1mhz  =  1000000 / CYCLES_PER_BIT
+    sclk_est_10mhz = 10000000 / CYCLES_PER_BIT
+    sclk_est_25mhz = 25000000 / CYCLES_PER_BIT
+    sclk_est_50mhz = 50000000 / CYCLES_PER_BIT
+    timeout_limit  = round(4095 / CYCLES_PER_BIT, 2)
+    TIMEOUT = (DIV12 & 0xfff) ^ 0xfff
+    timeout_actual = round(TIMEOUT / CYCLES_PER_BIT, 2)
+
+    dut._log.info(f"TEST SCL CONFIGURATION:")
+    dut._log.info(f"  CYCLES_PER_BIT     = {CYCLES_PER_BIT}  (timeout limit {timeout_limit:.2f} bits)")
+    dut._log.info(f"  CYCLES_PER_HALFBIT = {CYCLES_PER_HALFBIT}")
+    dut._log.info(f"  HALF_EDGE          = {HALF_EDGE}")
+    dut._log.info(f"  SYS_CLOCK  1 Mhz   = SCLK {frequency_pretty(sclk_est_1mhz)}")
+    dut._log.info(f"  SYS_CLOCK 10 Mhz   = SCLK {frequency_pretty(sclk_est_10mhz)}")
+    dut._log.info(f"  SYS_CLOCK 25 Mhz   = SCLK {frequency_pretty(sclk_est_25mhz)}")
+    dut._log.info(f"  SYS_CLOCK 50 Mhz   = SCLK {frequency_pretty(sclk_est_50mhz)}")
+    dut._log.info(f"TEST ENV CONFIGURATION:")
+    dut._log.info(f"  DIV12              = {DIV12} (0x{DIV12:x}) (as 0x{TIMEOUT:x} timeout {timeout_actual:.2f} bits)")
+    dut._log.info(f"  SCL_MODE           = {SCL_MODE} ({SCL_MODE_description(SCL_MODE)})")
+    dut._log.info(f"  PUSH_PULL_MODE     = {PUSH_PULL_MODE}")
+    dut._log.info(f"  DIVISOR            = {DIVISOR} ({DIVISOR_description(DIVISOR)})")
 

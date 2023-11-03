@@ -40,14 +40,17 @@ class SimConfig():
         assert len(a) == len(s), f"length mismatch {a} != {s}  {len(a)} != {len(s)}"
         assert len(a) == len(b), f"length mismatch {a} != {b}  {len(a)} != {len(b)}"
         for i in range(len(a)):
+            bitid = len(a) - i - 1
             aa = a[i]
             bb = b[i]
             mm = s[i]
-            print(f"{aa} {bb} {mm}")
+            desc = 'IGNORE' if mm == '?' else 'COMPARE A==B'
+            print(f"a={aa} b={bb} m={mm} bit{bitid} {desc}")
             if mm == '?':
                 continue
             if aa != bb:
                 return False
+        print(f"bv_compare_x(a={a}, s={s}, with_value={with_value}, force={force})")
         return True
 
     @property
