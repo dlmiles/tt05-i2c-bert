@@ -3,32 +3,38 @@
 # TT05 I2C (BERT) Bit Error Rate Tester / Echo ALU Peripheral
 
 
+I2C TinyTapeout
+ * TT 7SEG outputs driven from register to provide I2C control of 7SEG.
+
 Included a couple of experimental items:
  * Latching configuration bits on ENA rise and RST_N rise.
- * SDA line status sense on power-on and reset.
+ * SDA line status sense at power-on and reset.
 
 GHA actions includes:
 
- * Verilator / Cocotb coverage testing and report
  * Gate Level testing
-
+ * Verilator / Cocotb coverage testing and report
+ * Online browser of VCD outputs (using Surfer viewer)
 
 
 ## I2C Peripheral
 
- * 8-bit ALU with accumulator (AND, OR, XOR, ADD) on the end of I2C.
+ * 8-bit ALU write with accumulator (AND, OR, XOR, ADD) on the end of I2C.
+ * 8-bit ALU read with accumulator (repeat, ROL, INVERT, ADD1) on the end of I2C.
 
  * Send fixed size commands.
  * Received (generate) read response data.
 
  * Supports Open-Drain (default) and Push Pull line modes.
- * Supports SCL mode (MAJ3 or raw via register)
+ * Supports SCL origin mode (RegNext, MAJ3, 3DFF-synchronizer, ANDNOR3-unanimous)
+   These represent methods of line noise immunity for serial communications
+ * Supports fixed divisor mode for sample tick 1:1, 1:2, 1:4, 1:8 with master clock.
 
  * ACK generator
  * NACK generator
 
  * Read/Write ALU accumulator value
- * Write ALU accumulator compare (generates ACK/NACK is expected value)
+ * Write ALU accumulator compare (generates ACK/NACK for expected value)
 
  * Read data (fixed size command, 1 to 2^12 bytes)
  * Read data (unlimited length)
