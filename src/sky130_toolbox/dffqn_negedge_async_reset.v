@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: Apache2.0
 //
 `default_nettype none
+`ifdef TIMESCALE
 `timescale 1ns/1ps
+`endif
 //
 // MetaData-1.0::
 // Module-Name: dffqn_negedge_async_reset
@@ -22,12 +24,12 @@
 //
 //
 module dffqn_negedge_async_reset (
-    input			clk,
-    input			reset,
-    input			d,
+    input  wire			clk,
+    input  wire			reset,
+    input  wire			d,
 
-    output reg			q,
-    output			qn
+    output  reg			q,
+    output wire			qn
 );
 
     always @(negedge clk or posedge reset) begin

@@ -2,9 +2,10 @@
 // SPDX-FileCopyrightText: Copyright 2023 Darryl Miles
 // SPDX-License-Identifier: Apache2.0
 //
-`timescale 1ns / 1ps
 `default_nettype none
-
+`ifdef TIMESCALE
+`timescale 1ns/1ps
+`endif
 // for use as behavioral only
 `ifndef SYNTHESIS
 // udp_dlatch$PR

@@ -1,5 +1,11 @@
+//
+// SPDX-FileCopyrightText: Copyright 2023 Darryl Miles
+// SPDX-License-Identifier: Apache2.0
+//
 `default_nettype none
+`ifdef TIMESCALE
 `timescale 1ns/1ps
+`endif
 //
 // MetaData-1.0::
 // Module-Name: dff_async_reset
@@ -17,11 +23,11 @@
 //
 //
 module dff_async_reset (
-    input		clk,
-    input		reset,	// active high
-    input		d,
+    input  wire		clk,
+    input  wire		reset,	// active high
+    input  wire		d,
 
-    output reg		q
+    output  reg		q
 );
 
     always @(posedge clk or posedge reset) begin

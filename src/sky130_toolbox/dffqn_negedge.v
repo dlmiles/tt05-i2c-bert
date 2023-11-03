@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: Apache2.0
 //
 `default_nettype none
+`ifdef TIMESCALE
 `timescale 1ns/1ps
+`endif
 //
 // MetaData-1.0::
 // Module-Name: dffqn_negedge
@@ -21,11 +23,11 @@
 //
 //
 module dffqn_negedge (
-    input			clk,
-    input			d,
+    input  wire			clk,
+    input  wire			d,
 
-    output reg			q,
-    output			qn
+    output  reg			q,
+    output wire			qn
 );
 
     always @(negedge clk) begin

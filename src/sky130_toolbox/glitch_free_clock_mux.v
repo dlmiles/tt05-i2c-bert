@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: Apache2.0
 //
 `default_nettype none
+`ifdef TIMESCALE
 `timescale 1ns/1ps
-
+`endif
 //
 //  this is designed to switch 2 different clocks that are intended to run a while.
 //  this probably doesn't perform well if you keep switching 'sel' within a
@@ -17,10 +18,10 @@
 // REF: YouTube Electronicspedia, Glitch Free Clock Mux, 2022
 //
 module glitch_free_clock_mux (
-    output			clk_out,
-    input			sel,
-    input			clk_0,
-    input			clk_1
+    output wire			clk_out,
+    input  wire			sel,
+    input  wire			clk_0,
+    input  wire			clk_1
 );
 
     // No don't do this
