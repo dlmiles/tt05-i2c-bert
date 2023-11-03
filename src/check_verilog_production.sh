@@ -1,16 +1,20 @@
 #!/bin/bash -e
 #
 # The purpose of this script is to provide a check/validation/change of the
-# verilog is setup for producation building.
+# verilog is setup for production building.
 #
 # The changes include:
 #   * ensure external toplevel ports debug_S{CL,DA}*  and assignment code
+#     is removed
+#   * ensure external toplevel port simulation_z and assignment code
 #     is removed
 #
 #
 # If you just run this utility it will report the current status encoded into
 # the verilog and provide a non-zero exit status if that is not the production
 # values.
+#
+# To auto-patch for production: check_verilog_production.sh patch patch_synthesis
 #
 #
 VERILOG_FILE="TT05I2CBertTop.v"
@@ -65,7 +69,7 @@ then
 		-e '\/^  .*put .*simulation.*/d' \
 		-i "$VERILOG_FILE"
 
-	if [ $patch_synthesis -gt 0 ]
+	if [ $patch_synthesis -gt 0 ] && false  ## DISABLED to test alternative method
 	then
 		echo "###"
 		echo "### patch_synthesis=$patch_synthesis"
