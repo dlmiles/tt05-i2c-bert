@@ -26,8 +26,8 @@ VERILOG_SOURCES += $(PWD)/sky130_toolbox/dffqn_negedge_async_reset.v
 VERILOG_SOURCES += $(PWD)/sky130_toolbox/dff_async_reset.v
 VERILOG_SOURCES += $(PWD)/sky130_toolbox/glitch_free_clock_mux_async_reset.v
 VERILOG_SOURCES += $(PWD)/sky130_toolbox/sky130_behavioral_udp_dlatch_pr.v
-VERILOG_SOURCES += $(PWD)/sky130_fd_sc_hd__dlrtp.v
-VERILOG_SOURCES += $(PWD)/sky130_fd_sc_hd__maj3.v
+VERILOG_SOURCES += $(PWD)/pdk_generic/sky130_fd_sc_hd__dlrtp.v
+VERILOG_SOURCES += $(PWD)/pdk_generic/sky130_fd_sc_hd__maj3.v
 VERILOG_SOURCES += $(PWD)/TT05I2CBertTop.v
 
 ifeq ($(SIM),icarus)
@@ -44,10 +44,10 @@ COMPILE_ARGS    += -DFUNCTIONAL
 COMPILE_ARGS    += -DUSE_POWER_PINS
 COMPILE_ARGS    += -DSIM
 COMPILE_ARGS    += -DUNIT_DELAY=\#1
-#VERILOG_SOURCES += $(PDK_ROOT)/sky130A/libs.ref/sky130_fd_sc_hd/verilog/primitives.v
-#VERILOG_SOURCES += $(PDK_ROOT)/sky130A/libs.ref/sky130_fd_sc_hd/verilog/sky130_fd_sc_hd.v
-VERILOG_SOURCES += sky130_fd_sc_hd/primitives.v
-VERILOG_SOURCES += sky130_fd_sc_hd/sky130_fd_sc_hd.v
+VERILOG_SOURCES += $(PDK_ROOT)/sky130A/libs.ref/sky130_fd_sc_hd/verilog/primitives.v
+VERILOG_SOURCES += $(PDK_ROOT)/sky130A/libs.ref/sky130_fd_sc_hd/verilog/sky130_fd_sc_hd.v
+#VERILOG_SOURCES += sky130_fd_sc_hd/primitives.v
+#VERILOG_SOURCES += sky130_fd_sc_hd/sky130_fd_sc_hd.v
 
 # this gets copied in by the GDS action workflow
 VERILOG_SOURCES += $(PWD)/tbc_tt_um_dlmiles_tt05_i2c_bert.v $(PWD)/gate_level_netlist.v

@@ -80,4 +80,4 @@ set ::env(RT_MAX_LAYER) {met4}
 
 
 #################################
-set ::env(SYNTH_DEFINES) "SYNTHESIS_OPENLANE"
+#set ::env(SYNTH_DEFINES) "SYNTHESIS_OPENLANE"
