@@ -53,7 +53,7 @@ module tt_um_dlmiles_tt05_i2c_bert (
 `ifdef HAVE_DEBUG_I2C
     // These exist like this as some simulators setups used by project do not allow the
     //  external signal to present X or Z state.  But the simulator can model X/Z state,
-    //  so we provide project verilog enough signal information to create diffrent views
+    //  so we provide project verilog enough signal information to create different views
     //  to help observe signalling.
     reg  debug_SCL_ie;	// input-enable (peer is driving)
     wire debug_SCL_od;	// bus view of open-drain
@@ -73,6 +73,9 @@ module tt_um_dlmiles_tt05_i2c_bert (
     wire debug_SDA_os;	// open-drain line state view (X is error, pull-up when no driver)
     wire debug_SDA_ps;	// push-pull line state view (X is error, Z is no driver)
 
+    // SpinalHDL/SpinalSim does not have a method in create a 'z' signal
+    // So we supply a constant 'z' into the project module and SpinalHDL can connect
+    //   that though to any nets we want a 'z' state on
     wire simulation_z;
     assign simulation_z = 1'bz;
 `endif
