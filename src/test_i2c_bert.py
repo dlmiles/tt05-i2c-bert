@@ -801,8 +801,6 @@ async def test_i2c_bert(dut):
         nack = ctrl.PULLUP	# open-drain
     else:
         nack = None
-    # GL_TEST is getting: GL_TEST I2CController.sda_rx() = {str(self._sdascl_out)} [IS_NOT_RESOLABLE] using {nv}
-    #if not GL_TEST:	## FIXME reinstante this
     assert nack is ctrl.ACK
 
     ctrl.scl = True		## FIXME check SDA still idle
@@ -847,13 +845,11 @@ async def test_i2c_bert(dut):
 
     await ctrl.send_data(0x00)
     nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-    if not GL_TEST:	## FIXME reinstante this
-        assert nack is ctrl.ACK
+    assert nack is ctrl.ACK
 
     await ctrl.send_data(0xff)
     nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-    if not GL_TEST:	## FIXME reinstante this
-        assert nack is ctrl.ACK
+    assert nack is ctrl.ACK
 
     assert await ctrl.check_recv_is_idle()
     await ctrl.send_stop()
@@ -874,8 +870,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xf0)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -894,8 +889,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0x80)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -914,8 +908,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0x81)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -934,8 +927,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0x84)
         nack = await ctrl.recv_ack(ctrl.NACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.NACK	# NACK
+        assert nack is ctrl.NACK	# NACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -954,8 +946,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0x85)
         nack = await ctrl.recv_ack(ctrl.NACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.NACK	# NACK
+        assert nack is ctrl.NACK	# NACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -974,8 +965,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xc1)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = await ctrl.recv_data()
         dut._log.info(f"GETCFG[0] = {str(data)}  0x{data:02x}")
@@ -986,8 +976,7 @@ async def test_i2c_bert(dut):
         v = SCL_MODE & 0x7	# [2:0]
         if PUSH_PULL_MODE:
             v |= 0x08		# bit3
-        if not GL_TEST:		## FIXME reinstate this
-            assert data == v
+        assert data == v
 
         ctrl.sda_idle()
         assert await ctrl.check_recv_is_idle()
@@ -1007,8 +996,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xd1)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = await ctrl.recv_data()
         dut._log.info(f"GETLEN[0] = {str(data)}  0x{data:02x}")
@@ -1034,14 +1022,12 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xe1)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = await ctrl.recv_data()
         dut._log.info(f"GETENDS[0] = {str(data)}  0x{data:02x}")
         await ctrl.send_ack()
-        if not GL_TEST: ## FIXME reinstante this
-            assert data == (DIV12 & 0xff) ^ 0xff # 0x05
+        assert data == (DIV12 & 0xff) ^ 0xff # 0x05
 
         data = await ctrl.recv_data()
         dut._log.info(f"GETENDS[1] = {str(data)}  0x{data:02x}")
@@ -1068,14 +1054,12 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xf1)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = await ctrl.recv_data()
         dut._log.info(f"LATCH[0] = {str(data)}  0x{data:02x}")
         await ctrl.send_ack()
-        if not GL_TEST:	## FIXME reinstante this, RANDOM_POLICY fixes, ransom is random error PP=true
-            assert data == LATCHED_00
+        assert data == LATCHED_00
 
         data = await ctrl.recv_data()
         dut._log.info(f"LATCH[1] = {str(data)}  0x{data:02x}")
@@ -1085,14 +1069,12 @@ async def test_i2c_bert(dut):
         data = await ctrl.recv_data()
         dut._log.info(f"LATCH[2] = {str(data)}  0x{data:02x}")
         await ctrl.send_ack()
-        if not GL_TEST:	## FIXME reinstante this, RANDOM_POLICY fixes, ransom is random error
-            assert data == LATCHED_16
+        assert data == LATCHED_16
 
         data = await ctrl.recv_data()
         dut._log.info(f"LATCH[3] = {str(data)}  0x{data:02x}")
         await ctrl.send_ack()
-        if not GL_TEST:	## FIXME reinstante this, RANDOM_POLICY fixes, ransom is random error
-            assert data == LATCHED_24
+        assert data == LATCHED_24
 
         ctrl.sda_idle()
         assert await ctrl.check_recv_is_idle()
@@ -1112,8 +1094,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xd1)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = await ctrl.recv_data()
         dut._log.info(f"GETLED[0] = {str(data)}  0x{data:02x}")
@@ -1138,15 +1119,13 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xf8)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = 0x69
         await ctrl.send_data(data)
         dut._log.info(f"SETDATA[0] = {str(data)}  0x{data:02x}")
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1164,8 +1143,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xf9)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         maxpos = 1
         for pos in range(maxpos):
@@ -1190,22 +1168,19 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xe0)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = 0xed
         await ctrl.send_data(data)
         dut._log.info(f"SETENDS[0] = {str(data)}  0x{data:02x}")
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = 0x0f
         await ctrl.send_data(data)
         dut._log.info(f"SETENDS[1] = {str(data)}  0x{data:02x}")
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1223,8 +1198,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xe1)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = await ctrl.recv_data()
         dut._log.info(f"GETENDS[0] = {str(data)}  0x{data:02x}")
@@ -1252,15 +1226,13 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xd0)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = 0x23
         await ctrl.send_data(data)
         dut._log.info(f"SETLEN[0] = {str(data)}  0x{data:02x}")
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1278,8 +1250,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xd1)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = await ctrl.recv_data()
         dut._log.info(f"GETLEN[0] = {str(data)}  0x{data:02x}")
@@ -1302,15 +1273,13 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xd0)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = 0x00
         await ctrl.send_data(data)
         dut._log.info(f"SETLEN[0] = {str(data)}  0x{data:02x}")
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1328,15 +1297,13 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xf4)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = 0x78	# "t" letter, for TT, or Test!
         await ctrl.send_data(data)
         dut._log.info(f"SETLED[0] = {str(data)}  0x{data:02x}")
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1354,8 +1321,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xf5)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = await ctrl.recv_data()
         dut._log.info(f"GETLED[{pos}] = {str(data)}  0x{data:02x}")
@@ -1379,15 +1345,13 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xc0)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = 0x00
         await ctrl.send_data(data)
         dut._log.info(f"SETCFG[0] = {str(data)}  0x{data:02x}")
         nack = await ctrl.recv_ack(ctrl.NACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.NACK		## NACK not implemented right now
+        assert nack is ctrl.NACK		## NACK not implemented right now
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1405,8 +1369,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xc1)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = await ctrl.recv_data()
         dut._log.info(f"GETCFG[0] = {str(data)}  0x{data:02x}")
@@ -1430,8 +1393,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xc0)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         # GETCFG not the same layout as LATCHED
         # bit0..2  SCL MODE
@@ -1440,14 +1402,13 @@ async def test_i2c_bert(dut):
         v = SCL_MODE & 0x7	# [2:0]
         if PUSH_PULL_MODE:
             v |= 0x08	# bit3
-        if not GL_TEST:	## FIXME reinstate this
-            assert data == v
+        assert data == v
+
         data = v
         await ctrl.send_data(data)
         dut._log.info(f"SETCFG[0] = {str(data)}  0x{data:02x}")
         nack = await ctrl.recv_ack(ctrl.NACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.NACK	## NACK not implemented right now
+        assert nack is ctrl.NACK	## NACK not implemented right now
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1468,8 +1429,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xf0)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1489,15 +1449,13 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xf8)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = 0x87
         await ctrl.send_data(data)
         dut._log.info(f"SETDATA[0] = {str(data)}  0x{data:02x}")
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1515,13 +1473,11 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(cmd_alu(read=False, len4=0, op_add=True))
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         await ctrl.send_data(0x03)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1539,8 +1495,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xfd)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         maxpos = 2
         for pos in range(maxpos):
@@ -1566,18 +1521,15 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(cmd_alu(read=False, len4=1, op_xor=True))
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         await ctrl.send_data(0x08)	# 0x8a => 0x83
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         await ctrl.send_data(0xc0)	# 0x83 => 0x43
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1595,8 +1547,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xfd)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         maxpos = 3
         for pos in range(maxpos):
@@ -1622,23 +1573,19 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(cmd_alu(read=False, len4=2, op_or=True))
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         await ctrl.send_data(0x01)	#
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         await ctrl.send_data(0x02)	#
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         await ctrl.send_data(0x08)	#
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1656,8 +1603,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xfd)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         maxpos = 4
         for pos in range(maxpos):
@@ -1683,28 +1629,23 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(cmd_alu(read=False, len4=3, op_and=True))
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         await ctrl.send_data(0xfe)	#
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         await ctrl.send_data(0xfd)	#
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         await ctrl.send_data(0x7f)	#
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         await ctrl.send_data(0xf7)	#
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1722,8 +1663,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xfd)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         maxpos = 5
         for pos in range(maxpos):
@@ -1752,8 +1692,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(cmd_alu(read=True, len4=0, op_add=True))
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = await ctrl.recv_data()
         dut._log.info(f"ALUR_ADD[0] = {str(data)}  0x{data:02x}")
@@ -1776,8 +1715,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xfc)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         maxpos = 2
         for pos in range(maxpos):
@@ -1785,8 +1723,7 @@ async def test_i2c_bert(dut):
             await ctrl.send_data(data)
             nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
             dut._log.info(f"RECV[{pos}] = {str(data)}  0x{data:02x}")
-            if not GL_TEST:	## FIXME reinstante this
-                assert nack is ctrl.ACK
+            assert nack is ctrl.ACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1804,8 +1741,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(cmd_alu(read=True, len4=1, op_xor=True))
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = await ctrl.recv_data()
         dut._log.info(f"ALUR_XOR[0] = {str(data)}  0x{data:02x}")
@@ -1833,8 +1769,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xfc)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         maxpos = 3
         for pos in range(maxpos):
@@ -1842,8 +1777,7 @@ async def test_i2c_bert(dut):
             await ctrl.send_data(data)
             nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
             dut._log.info(f"RECV[{pos}] = {str(data)}  0x{data:02x}")
-            if not GL_TEST:	## FIXME reinstante this
-                assert nack is ctrl.ACK
+            assert nack is ctrl.ACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1861,8 +1795,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(cmd_alu(read=True, len4=2, op_or=True))
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = await ctrl.recv_data()
         dut._log.info(f"ALUR_OR[0] = {str(data)}  0x{data:02x}")
@@ -1895,8 +1828,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xfc)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         maxpos = 4
         for pos in range(maxpos):
@@ -1904,8 +1836,7 @@ async def test_i2c_bert(dut):
             await ctrl.send_data(data)
             nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
             dut._log.info(f"RECV[{pos}] = {str(data)}  0x{data:02x}")
-            if not GL_TEST:	## FIXME reinstante this
-                assert nack is ctrl.ACK
+            assert nack is ctrl.ACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1923,8 +1854,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(cmd_alu(read=True, len4=3, op_and=True))
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         data = await ctrl.recv_data()
         dut._log.info(f"ALUR_AND[0] = {str(data)}  0x{data:02x}")
@@ -1962,8 +1892,7 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xfc)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         maxpos = 5
         for pos in range(maxpos):
@@ -1971,8 +1900,7 @@ async def test_i2c_bert(dut):
             await ctrl.send_data(data)
             nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
             dut._log.info(f"RECV[{pos}] = {str(data)}  0x{data:02x}")
-            if not GL_TEST:	## FIXME reinstante this
-                assert nack is ctrl.ACK
+            assert nack is ctrl.ACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -1994,8 +1922,7 @@ async def test_i2c_bert(dut):
         await ctrl.send_data(0xcc)
         # FIXME this NACKs as noimpl
         nack = await ctrl.recv_ack(ctrl.NACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.NACK
+        assert nack is ctrl.NACK
 
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
@@ -2014,16 +1941,14 @@ async def test_i2c_bert(dut):
 
         await ctrl.send_data(0xc8)
         nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        if not GL_TEST:	## FIXME reinstante this
-            assert nack is ctrl.ACK
+        assert nack is ctrl.ACK
 
         # FIXME this ACKs but noimpl
 
         # FIXME need to add sense on SCL after we try to rise
         data = await ctrl.recv_data()
         dut._log.info(f"STRETCH = {str(data)}  0x{data:02x}")
-        if not GL_TEST:	## FIXME reinstante this
-            nack = await ctrl.recv_ack()
+        nack = await ctrl.recv_ack()
         #assert nack is None	## FIXME
 
         #assert await ctrl.check_recv_is_idle()
