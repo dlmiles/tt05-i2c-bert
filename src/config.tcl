@@ -84,7 +84,7 @@ set ::env(RT_MAX_LAYER) {met4}
 #
 #
 # Helps with GateLevel diagnostics
-set ::env(SYNTH_NO_FLAT) "1"
+#set ::env(SYNTH_NO_FLAT) "1"
 
 # 66.666Mhz
 set ::env(CLOCK_PERIOD) "15"
