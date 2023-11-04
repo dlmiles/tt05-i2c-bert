@@ -73,8 +73,7 @@ module TT05I2CBertTop (
   wire                _zz_debug_SDA_od_1;
   wire                _zz_debug_SDA_od_2;
   wire                pushPullMode;
-  wire       [1:0]    sclMode;
-  wire                div12active;
+  wire       [2:0]    sclMode;
   wire       [11:0]   div12;
 
   Timer timer_1 (
@@ -85,7 +84,6 @@ module TT05I2CBertTop (
     .io_timerSampleTick (timer_1_io_timerSampleTick   ), //o
     .io_canPowerOnReset (timer_1_io_canPowerOnReset   ), //o
     .io_canStart        (timer_1_io_canStart          ), //o
-    .io_div12active     (div12active                  ), //i
     .io_div12           (div12[11:0]                  ), //i
     .io_selDivisor      (timer_1_io_selDivisor[1:0]   ), //i
     .io_timerLoadH      (myState_1_io_timerLoadH      ), //i
@@ -121,7 +119,7 @@ module TT05I2CBertTop (
     .io_data8rx         (i2c_io_data8rx[7:0]       ), //o
     .io_data8rxNow      (i2c_io_data8rxNow[7:0]    ), //o
     .io_data8tx         (myState_1_io_data8tx[7:0] ), //i
-    .io_sclMode         (sclMode[1:0]              ), //i
+    .io_sclMode         (sclMode[2:0]              ), //i
     .io_pushPullMode    (pushPullMode              ), //i
     .rst_n              (rst_n                     ), //i
     .clk                (clk                       )  //i
@@ -143,7 +141,7 @@ module TT05I2CBertTop (
     .io_timerLoadL   (myState_1_io_timerLoadL      ), //o
     .io_timerEndstop (timer_1_io_timerEndstop[11:0]), //i
     .io_led8         (myState_1_io_led8[7:0]       ), //o
-    .io_cfgSclMode   (sclMode[1:0]                 ), //i
+    .io_cfgSclMode   (sclMode[2:0]                 ), //i
     .io_cfgPushPull  (pushPullMode                 ), //i
     .clk             (clk                          ), //i
     .rst_n           (rst_n                        )  //i
@@ -197,9 +195,8 @@ module TT05I2CBertTop (
   assign debug_SDA_pp = (_zz_debug_SDA_od_1 ? _zz_debug_SDA_od : (debug_SDA_ie ? _zz_debug_SDA_od_2 : simulation_z));
   assign debug_SDA_pg = ((_zz_debug_SDA_od_1 && debug_SDA_ie) ? 1'b0 : (_zz_debug_SDA_od_1 ? 1'b1 : (debug_SDA_ie ? 1'b1 : (((! debug_SDA_ie) && (! _zz_debug_SDA_od_2)) ? 1'b1 : 1'b1))));
   assign debug_SDA_ps = ((_zz_debug_SDA_od_1 && debug_SDA_ie) ? 1'bx : (_zz_debug_SDA_od_1 ? _zz_debug_SDA_od : (debug_SDA_ie ? _zz_debug_SDA_od_2 : simulation_z)));
-  assign pushPullMode = latched[2];
-  assign sclMode = latched[1 : 0];
-  assign div12active = latched[3];
+  assign pushPullMode = latched[3];
+  assign sclMode = latched[2 : 0];
   assign div12 = latched[15 : 4];
   assign i2c_io_bus_sdaIn = uio_in[3];
   assign i2c_io_bus_sclIn = uio_in[2];
@@ -227,7 +224,7 @@ module MyState (
   output reg          io_timerLoadL,
   input      [11:0]   io_timerEndstop,
   output     [7:0]    io_led8,
-  input      [1:0]    io_cfgSclMode,
+  input      [2:0]    io_cfgSclMode,
   input               io_cfgPushPull,
   input               clk,
   input               rst_n
@@ -261,22 +258,22 @@ module MyState (
   wire                fsmPhase_wantKill;
   reg        [2:0]    fsmPhase_stateReg;
   reg        [2:0]    fsmPhase_stateNext;
-  wire                when_I2CBertTop_l353;
-  wire                when_I2CBertTop_l428;
-  wire                when_I2CBertTop_l430;
-  wire       [2:0]    switch_I2CBertTop_l443;
-  wire                when_I2CBertTop_l473;
-  wire                when_I2CBertTop_l489;
+  wire                when_I2CBertTop_l413;
+  wire                when_I2CBertTop_l488;
+  wire                when_I2CBertTop_l490;
+  wire       [2:0]    switch_I2CBertTop_l503;
+  wire                when_I2CBertTop_l533;
+  wire                when_I2CBertTop_l549;
   wire       [0:0]    switch_Misc_l226;
   reg        [7:0]    _zz_io_data8tx;
   reg        [7:0]    _zz_io_data8tx_1;
   wire       [1:0]    switch_Misc_l226_1;
   reg        [7:0]    _zz_io_data8tx_2;
-  wire                when_I2CBertTop_l536;
-  wire                when_I2CBertTop_l552;
-  wire                when_I2CBertTop_l557;
-  wire                when_I2CBertTop_l570;
-  wire                when_I2CBertTop_l571;
+  wire                when_I2CBertTop_l596;
+  wire                when_I2CBertTop_l612;
+  wire                when_I2CBertTop_l617;
+  wire                when_I2CBertTop_l630;
+  wire                when_I2CBertTop_l631;
   `ifndef SYNTHESIS
   reg [55:0] fsmPhase_stateReg_string;
   reg [55:0] fsmPhase_stateNext_string;
@@ -411,7 +408,7 @@ module MyState (
       fsmPhase_enumDef_RECV : begin
       end
       fsmPhase_enumDef_SEND : begin
-        if(when_I2CBertTop_l489) begin
+        if(when_I2CBertTop_l549) begin
           casez(cmd8)
             8'b11111001 : begin
               io_data8tx = alu_1_io_acc;
@@ -460,8 +457,8 @@ module MyState (
         if(io_wantTick) begin
           casez(cmd8)
             8'b11100000 : begin
-              if(!when_I2CBertTop_l428) begin
-                if(when_I2CBertTop_l430) begin
+              if(!when_I2CBertTop_l488) begin
+                if(when_I2CBertTop_l490) begin
                   io_timerLoadH = 1'b1;
                 end
               end
@@ -491,7 +488,7 @@ module MyState (
         if(io_wantTick) begin
           casez(cmd8)
             8'b11100000 : begin
-              if(when_I2CBertTop_l428) begin
+              if(when_I2CBertTop_l488) begin
                 io_timerLoadL = 1'b1;
               end
             end
@@ -523,7 +520,7 @@ module MyState (
       end
       fsmPhase_enumDef_CONTROL : begin
         if(io_wantTick) begin
-          if(!when_I2CBertTop_l353) begin
+          if(!when_I2CBertTop_l413) begin
             casez(io_datain8rxNow)
               8'b11110000 : begin
                 alu_1_io_reset = 1'b1;
@@ -569,7 +566,7 @@ module MyState (
               alu_1_io_en = 1'b1;
             end
             8'b11111100 : begin
-              case(switch_I2CBertTop_l443)
+              case(switch_I2CBertTop_l503)
                 3'b001 : begin
                   alu_1_io_en = 1'b1;
                 end
@@ -611,7 +608,7 @@ module MyState (
         if(io_wantTick) begin
           casez(cmd8)
             8'b11111100 : begin
-              case(switch_I2CBertTop_l443)
+              case(switch_I2CBertTop_l503)
                 3'b001 : begin
                   alu_1_io_opand = {alu_1_io_acc[6 : 0],alu_1_io_acc[7]};
                 end
@@ -654,7 +651,7 @@ module MyState (
               alu_1_io_op2 = _zz_io_op2[2];
             end
             8'b11111100 : begin
-              case(switch_I2CBertTop_l443)
+              case(switch_I2CBertTop_l503)
                 3'b001 : begin
                   alu_1_io_op2 = _zz_io_op2_1[2];
                 end
@@ -718,7 +715,7 @@ module MyState (
       end
       fsmPhase_enumDef_CONTROL : begin
         if(io_wantTick) begin
-          if(when_I2CBertTop_l353) begin
+          if(when_I2CBertTop_l413) begin
             casez(io_datain8rxNow)
               8'b1000000?, 8'b00000001 : begin
                 fsmPhase_stateNext = fsmPhase_enumDef_RESET;
@@ -770,8 +767,8 @@ module MyState (
               fsmPhase_stateNext = fsmPhase_enumDef_RESET;
             end
             8'b11100000 : begin
-              if(!when_I2CBertTop_l428) begin
-                if(when_I2CBertTop_l430) begin
+              if(!when_I2CBertTop_l488) begin
+                if(when_I2CBertTop_l490) begin
                   fsmPhase_stateNext = fsmPhase_enumDef_RESET;
                 end
               end
@@ -786,7 +783,7 @@ module MyState (
               fsmPhase_stateNext = fsmPhase_enumDef_RESET;
             end
             8'b??????1? : begin
-              if(when_I2CBertTop_l473) begin
+              if(when_I2CBertTop_l533) begin
                 fsmPhase_stateNext = fsmPhase_enumDef_RESET;
               end
             end
@@ -805,7 +802,7 @@ module MyState (
               fsmPhase_stateNext = fsmPhase_enumDef_RESET;
             end
             8'b11100001 : begin
-              if(when_I2CBertTop_l536) begin
+              if(when_I2CBertTop_l596) begin
                 fsmPhase_stateNext = fsmPhase_enumDef_RESET;
               end
             end
@@ -819,12 +816,12 @@ module MyState (
               fsmPhase_stateNext = fsmPhase_enumDef_RESET;
             end
             8'b11110001 : begin
-              if(when_I2CBertTop_l552) begin
+              if(when_I2CBertTop_l612) begin
                 fsmPhase_stateNext = fsmPhase_enumDef_RESET;
               end
             end
             8'b??????1? : begin
-              if(when_I2CBertTop_l557) begin
+              if(when_I2CBertTop_l617) begin
                 fsmPhase_stateNext = fsmPhase_enumDef_RESET;
               end
             end
@@ -835,8 +832,8 @@ module MyState (
       end
       fsmPhase_enumDef_STRETCH : begin
         if(io_wantTick) begin
-          if(when_I2CBertTop_l570) begin
-            if(when_I2CBertTop_l571) begin
+          if(when_I2CBertTop_l630) begin
+            if(when_I2CBertTop_l631) begin
               fsmPhase_stateNext = fsmPhase_enumDef_SEND;
             end else begin
               fsmPhase_stateNext = fsmPhase_enumDef_RECV;
@@ -858,12 +855,12 @@ module MyState (
     end
   end
 
-  assign when_I2CBertTop_l353 = (io_datain8rxNow[0] == 1'b1);
-  assign when_I2CBertTop_l428 = (counter == 12'h000);
-  assign when_I2CBertTop_l430 = (counter == 12'h001);
-  assign switch_I2CBertTop_l443 = {1'd0, alu_1_io_op};
-  assign when_I2CBertTop_l473 = (counter == len12);
-  assign when_I2CBertTop_l489 = 1'b1;
+  assign when_I2CBertTop_l413 = (io_datain8rxNow[0] == 1'b1);
+  assign when_I2CBertTop_l488 = (counter == 12'h000);
+  assign when_I2CBertTop_l490 = (counter == 12'h001);
+  assign switch_I2CBertTop_l503 = {1'd0, alu_1_io_op};
+  assign when_I2CBertTop_l533 = (counter == len12);
+  assign when_I2CBertTop_l549 = 1'b1;
   assign switch_Misc_l226 = counter[0 : 0];
   always @(*) begin
     case(switch_Misc_l226)
@@ -877,9 +874,9 @@ module MyState (
   end
 
   always @(*) begin
-    _zz_io_data8tx_1[7 : 3] = 5'h00;
-    _zz_io_data8tx_1[2] = io_cfgPushPull;
-    _zz_io_data8tx_1[1 : 0] = io_cfgSclMode;
+    _zz_io_data8tx_1[7 : 4] = 4'b0000;
+    _zz_io_data8tx_1[3] = io_cfgPushPull;
+    _zz_io_data8tx_1[2 : 0] = io_cfgSclMode;
   end
 
   assign switch_Misc_l226_1 = counter[1 : 0];
@@ -900,14 +897,13 @@ module MyState (
     endcase
   end
 
-  assign when_I2CBertTop_l536 = (counter == 12'h001);
-  assign when_I2CBertTop_l552 = (counter == 12'h003);
-  assign when_I2CBertTop_l557 = (counter == len12);
-  assign when_I2CBertTop_l570 = (counter == len12);
-  assign when_I2CBertTop_l571 = (readWriteBit == 1'b1);
+  assign when_I2CBertTop_l596 = (counter == 12'h001);
+  assign when_I2CBertTop_l612 = (counter == 12'h003);
+  assign when_I2CBertTop_l617 = (counter == len12);
+  assign when_I2CBertTop_l630 = (counter == len12);
+  assign when_I2CBertTop_l631 = (readWriteBit == 1'b1);
   always @(posedge clk) begin
     if(!rst_n) begin
-      led8 <= 8'h00;
       len8 <= 8'h00;
       counter <= 12'h001;
       fsmPhase_stateReg <= fsmPhase_enumDef_BOOT;
@@ -918,7 +914,7 @@ module MyState (
         end
         fsmPhase_enumDef_CONTROL : begin
           if(io_wantTick) begin
-            if(when_I2CBertTop_l353) begin
+            if(when_I2CBertTop_l413) begin
               casez(io_datain8rxNow)
                 8'b1000000?, 8'b00000001 : begin
                 end
@@ -945,7 +941,6 @@ module MyState (
                 end
                 8'b??????1?, 8'b11111000, 8'b11100000, 8'b11000000, 8'b11010000, 8'b11110100, 8'b11111100, 8'b00000000 : begin
                   counter <= 12'h000;
-                  led8 <= 8'h00;
                 end
                 default : begin
                 end
@@ -958,9 +953,6 @@ module MyState (
             casez(cmd8)
               8'b11010000 : begin
                 len8 <= io_datain8rxNow;
-              end
-              8'b11110100 : begin
-                led8 <= io_datain8rxNow;
               end
               default : begin
               end
@@ -975,7 +967,7 @@ module MyState (
         end
         fsmPhase_enumDef_STRETCH : begin
           if(io_wantTick) begin
-            if(!when_I2CBertTop_l570) begin
+            if(!when_I2CBertTop_l630) begin
               counter <= (counter + 12'h001);
             end
           end
@@ -993,7 +985,7 @@ module MyState (
       fsmPhase_enumDef_CONTROL : begin
         if(io_wantTick) begin
           cmd7 <= io_datain8rxNow[7 : 1];
-          if(when_I2CBertTop_l353) begin
+          if(when_I2CBertTop_l413) begin
             casez(io_datain8rxNow)
               8'b1000000?, 8'b00000001 : begin
                 readWriteBit <= 1'b0;
@@ -1027,6 +1019,7 @@ module MyState (
               end
               8'b??????1?, 8'b11111000, 8'b11100000, 8'b11000000, 8'b11010000, 8'b11110100, 8'b11111100, 8'b00000000 : begin
                 readWriteBit <= io_datain8rxNow[0];
+                led8 <= 8'h00;
               end
               default : begin
                 readWriteBit <= 1'b1;
@@ -1042,11 +1035,12 @@ module MyState (
               readWriteBit <= 1'b0;
             end
             8'b11110100 : begin
+              led8 <= io_datain8rxNow;
               readWriteBit <= 1'b0;
             end
             8'b11100000 : begin
-              if(!when_I2CBertTop_l428) begin
-                if(when_I2CBertTop_l430) begin
+              if(!when_I2CBertTop_l488) begin
+                if(when_I2CBertTop_l490) begin
                   readWriteBit <= 1'b0;
                 end
               end
@@ -1061,7 +1055,7 @@ module MyState (
               readWriteBit <= 1'b1;
             end
             8'b??????1? : begin
-              if(when_I2CBertTop_l473) begin
+              if(when_I2CBertTop_l533) begin
                 readWriteBit <= 1'b0;
               end
             end
@@ -1107,7 +1101,7 @@ module MyI2C (
   output reg [7:0]    io_data8rx,
   output     [7:0]    io_data8rxNow,
   input      [7:0]    io_data8tx,
-  input      [1:0]    io_sclMode,
+  input      [2:0]    io_sclMode,
   input               io_pushPullMode,
   input               rst_n,
   input               clk
@@ -1127,19 +1121,27 @@ module MyI2C (
   wire                clockGate_reset;
   wire                sdaMaj3_X;
   wire                sdaAndNor3_io_o;
+  wire                sdaMaj5_io_o;
+  wire                sdaAndNor5_io_o;
   wire                sclMaj3_X;
   wire                sclAndNor3_io_o;
+  wire                sclMaj5_io_o;
+  wire                sclAndNor5_io_o;
   wire                clockGate_clk_out;
   reg                 sdaTx;
   reg                 sclTx;
   reg                 timerAutobaud;
-  wire                sdaHistory_0;
-  reg                 sdaHistory_1;
-  reg                 sdaHistory_2;
+  wire                sdaHistory5_0;
+  reg                 sdaHistory5_1;
+  reg                 sdaHistory5_2;
+  reg                 sdaHistory5_3;
+  reg                 sdaHistory5_4;
   reg                 sda;
-  wire                sclHistory_0;
-  reg                 sclHistory_1;
-  reg                 sclHistory_2;
+  wire                sclHistory5_0;
+  reg                 sclHistory5_1;
+  reg                 sclHistory5_2;
+  reg                 sclHistory5_3;
+  reg                 sclHistory5_4;
   reg                 scl;
   wire                sdaEdge_rise;
   wire                sdaEdge_fall;
@@ -1159,15 +1161,15 @@ module MyI2C (
   reg        [2:0]    fsm_bitCount;
   reg        [3:0]    fsm_stateReg;
   reg        [3:0]    fsm_stateNext;
-  wire                when_I2CBertTop_l892;
-  wire                when_I2CBertTop_l917;
+  wire                when_I2CBertTop_l972;
+  wire                when_I2CBertTop_l997;
   wire                _zz_io_bus_sdaOut;
-  wire                when_I2CBertTop_l923;
-  wire                when_I2CBertTop_l906;
-  wire                when_I2CBertTop_l944;
-  wire                when_I2CBertTop_l980;
+  wire                when_I2CBertTop_l1003;
+  wire                when_I2CBertTop_l986;
+  wire                when_I2CBertTop_l1024;
+  wire                when_I2CBertTop_l1060;
   wire                when_StateMachine_l253;
-  wire                when_I2CBertTop_l992;
+  wire                when_I2CBertTop_l1072;
   `ifndef SYNTHESIS
   reg [71:0] fsm_stateReg_string;
   reg [71:0] fsm_stateNext_string;
@@ -1175,35 +1177,73 @@ module MyI2C (
 
 
   (* keep , syn_keep *) sky130_fd_sc_hd__maj3 sdaMaj3 (
-    .A (sdaHistory_0), //i
-    .B (sdaHistory_1), //i
-    .C (sdaHistory_2), //i
-    .X (sdaMaj3_X   )  //o
+    .A (sdaHistory5_0), //i
+    .B (sdaHistory5_1), //i
+    .C (sdaHistory5_2), //i
+    .X (sdaMaj3_X    )  //o
   );
   AndNor3 sdaAndNor3 (
-    .io_a  (sdaHistory_0   ), //i
-    .io_b  (sdaHistory_1   ), //i
-    .io_c  (sdaHistory_2   ), //i
+    .io_a  (sdaHistory5_0  ), //i
+    .io_b  (sdaHistory5_1  ), //i
+    .io_c  (sdaHistory5_2  ), //i
     .io_o  (sdaAndNor3_io_o), //o
     .clk   (clk            ), //i
     .rst_n (rst_n          )  //i
   );
+  MAJ5 sdaMaj5 (
+    .io_a       (sdaHistory5_0), //i
+    .io_b       (sdaHistory5_1), //i
+    .io_c       (sdaHistory5_2), //i
+    .io_d       (sdaHistory5_3), //i
+    .io_e       (sdaHistory5_4), //i
+    .io_maj3abc (sdaMaj3_X    ), //i
+    .io_o       (sdaMaj5_io_o )  //o
+  );
+  AndNor5 sdaAndNor5 (
+    .io_a  (sdaHistory5_0  ), //i
+    .io_b  (sdaHistory5_1  ), //i
+    .io_c  (sdaHistory5_2  ), //i
+    .io_d  (sdaHistory5_3  ), //i
+    .io_e  (sdaHistory5_4  ), //i
+    .io_o  (sdaAndNor5_io_o), //o
+    .clk   (clk            ), //i
+    .rst_n (rst_n          )  //i
+  );
   (* keep , syn_keep *) sky130_fd_sc_hd__maj3 sclMaj3 (
-    .A (sclHistory_0), //i
-    .B (sclHistory_1), //i
-    .C (sclHistory_2), //i
-    .X (sclMaj3_X   )  //o
+    .A (sclHistory5_0), //i
+    .B (sclHistory5_1), //i
+    .C (sclHistory5_2), //i
+    .X (sclMaj3_X    )  //o
   );
   AndNor3 sclAndNor3 (
-    .io_a  (sclHistory_0   ), //i
-    .io_b  (sclHistory_1   ), //i
-    .io_c  (sclHistory_2   ), //i
+    .io_a  (sclHistory5_0  ), //i
+    .io_b  (sclHistory5_1  ), //i
+    .io_c  (sclHistory5_2  ), //i
     .io_o  (sclAndNor3_io_o), //o
     .clk   (clk            ), //i
     .rst_n (rst_n          )  //i
   );
+  MAJ5 sclMaj5 (
+    .io_a       (sclHistory5_0), //i
+    .io_b       (sclHistory5_1), //i
+    .io_c       (sclHistory5_2), //i
+    .io_d       (sclHistory5_3), //i
+    .io_e       (sclHistory5_4), //i
+    .io_maj3abc (sclMaj3_X    ), //i
+    .io_o       (sclMaj5_io_o )  //o
+  );
+  AndNor5 sclAndNor5 (
+    .io_a  (sclHistory5_0  ), //i
+    .io_b  (sclHistory5_1  ), //i
+    .io_c  (sclHistory5_2  ), //i
+    .io_d  (sclHistory5_3  ), //i
+    .io_e  (sclHistory5_4  ), //i
+    .io_o  (sclAndNor5_io_o), //o
+    .clk   (clk            ), //i
+    .rst_n (rst_n          )  //i
+  );
   glitch_free_clock_mux_async_reset clockGate (
-    .clk_0   (sclHistory_0     ), //i
+    .clk_0   (sclHistory5_0    ), //i
     .clk_1   (io_sclTick       ), //i
     .sel     (clockGate_sel    ), //i
     .clk_out (clockGate_clk_out), //o
@@ -1252,7 +1292,7 @@ module MyI2C (
       fsm_enumDef_RECV : begin
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l917) begin
+        if(when_I2CBertTop_l997) begin
           sdaTx = (! sclEdge_rise);
         end
       end
@@ -1282,8 +1322,8 @@ module MyI2C (
       fsm_enumDef_RECV : begin
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l917) begin
-          if(when_I2CBertTop_l923) begin
+        if(when_I2CBertTop_l997) begin
+          if(when_I2CBertTop_l1003) begin
             sclTx = io_canStretch;
           end
         end
@@ -1313,7 +1353,7 @@ module MyI2C (
       fsm_enumDef_RECV : begin
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l917) begin
+        if(when_I2CBertTop_l997) begin
           io_bus_sdaOut = _zz_io_bus_sdaOut;
         end
       end
@@ -1344,8 +1384,8 @@ module MyI2C (
       fsm_enumDef_RECV : begin
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l917) begin
-          if(when_I2CBertTop_l923) begin
+        if(when_I2CBertTop_l997) begin
+          if(when_I2CBertTop_l1003) begin
             io_bus_sclOut = io_canStretch;
           end
         end
@@ -1378,8 +1418,8 @@ module MyI2C (
       end
       fsm_enumDef_ACKNACK : begin
         io_timerRun = 1'b1;
-        if(when_I2CBertTop_l917) begin
-          if(!when_I2CBertTop_l923) begin
+        if(when_I2CBertTop_l997) begin
+          if(!when_I2CBertTop_l1003) begin
             if(sclEdge_rise) begin
               io_timerRun = 1'b0;
             end
@@ -1430,7 +1470,7 @@ module MyI2C (
       end
       fsm_enumDef_AUTOBAUD : begin
         if(sclEdge_rise) begin
-          if(when_I2CBertTop_l980) begin
+          if(when_I2CBertTop_l1060) begin
             io_timerLoad = 1'b1;
           end
         end
@@ -1506,7 +1546,7 @@ module MyI2C (
       end
       fsm_enumDef_RECV : begin
         if(sclEdge_rise) begin
-          if(when_I2CBertTop_l892) begin
+          if(when_I2CBertTop_l972) begin
             io_wantTick = 1'b1;
           end
         end
@@ -1515,7 +1555,7 @@ module MyI2C (
       end
       fsm_enumDef_SEND : begin
         if(sclEdge_rise) begin
-          if(when_I2CBertTop_l906) begin
+          if(when_I2CBertTop_l986) begin
             io_wantTick = 1'b1;
           end
         end
@@ -1543,8 +1583,8 @@ module MyI2C (
       fsm_enumDef_RECV : begin
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l917) begin
-          if(!when_I2CBertTop_l923) begin
+        if(when_I2CBertTop_l997) begin
+          if(!when_I2CBertTop_l1003) begin
             if(sclEdge_rise) begin
               io_nackRxStrobe = _zz_io_bus_sdaOut;
             end
@@ -1574,39 +1614,63 @@ module MyI2C (
     io_data8rx = shifter;
   end
 
-  assign sdaHistory_0 = io_bus_sdaIn;
+  assign sdaHistory5_0 = io_bus_sdaIn;
   always @(*) begin
     case(io_sclMode)
-      2'b00 : begin
-        sda = sdaHistory_0;
+      3'b000 : begin
+        sda = sdaHistory5_0;
       end
-      2'b01 : begin
+      3'b001 : begin
         sda = sdaMaj3_X;
       end
-      2'b10 : begin
-        sda = sdaHistory_2;
+      3'b010 : begin
+        sda = sdaHistory5_2;
+      end
+      3'b011 : begin
+        sda = sdaAndNor3_io_o;
+      end
+      3'b100 : begin
+        sda = sdaHistory5_4;
+      end
+      3'b101 : begin
+        sda = sdaMaj5_io_o;
+      end
+      3'b110 : begin
+        sda = io_bus_sdaIn;
       end
       default : begin
-        sda = sdaAndNor3_io_o;
+        sda = sdaAndNor5_io_o;
       end
     endcase
   end
 
   assign io_sdaSignal = sda;
-  assign sclHistory_0 = io_bus_sclIn;
+  assign sclHistory5_0 = io_bus_sclIn;
   always @(*) begin
     case(io_sclMode)
-      2'b00 : begin
-        scl = sclHistory_0;
+      3'b000 : begin
+        scl = sclHistory5_0;
       end
-      2'b01 : begin
+      3'b001 : begin
         scl = sclMaj3_X;
       end
-      2'b10 : begin
-        scl = sclHistory_2;
+      3'b010 : begin
+        scl = sclHistory5_2;
+      end
+      3'b011 : begin
+        scl = sclAndNor3_io_o;
+      end
+      3'b100 : begin
+        scl = sclHistory5_4;
+      end
+      3'b101 : begin
+        scl = sclMaj5_io_o;
+      end
+      3'b110 : begin
+        scl = io_bus_sclIn;
       end
       default : begin
-        scl = sclAndNor3_io_o;
+        scl = sclAndNor5_io_o;
       end
     endcase
   end
@@ -1665,14 +1729,14 @@ module MyI2C (
       end
       fsm_enumDef_RECV : begin
         if(sclEdge_rise) begin
-          if(when_I2CBertTop_l892) begin
+          if(when_I2CBertTop_l972) begin
             fsm_stateNext = fsm_enumDef_ACKNACK;
           end
         end
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l917) begin
-          if(!when_I2CBertTop_l923) begin
+        if(when_I2CBertTop_l997) begin
+          if(!when_I2CBertTop_l1003) begin
             if(sclEdge_rise) begin
               if(io_canSend) begin
                 fsm_stateNext = fsm_enumDef_SEND;
@@ -1689,13 +1753,13 @@ module MyI2C (
       end
       fsm_enumDef_SEND : begin
         if(sclEdge_rise) begin
-          if(when_I2CBertTop_l906) begin
+          if(when_I2CBertTop_l986) begin
             fsm_stateNext = fsm_enumDef_PRECHECK;
           end
         end
       end
       fsm_enumDef_PRECHECK : begin
-        if(when_I2CBertTop_l944) begin
+        if(when_I2CBertTop_l1024) begin
           fsm_stateNext = fsm_enumDef_CHECK;
         end
       end
@@ -1717,7 +1781,7 @@ module MyI2C (
       end
       fsm_enumDef_AUTOBAUD : begin
         if(sclEdge_rise) begin
-          if(when_I2CBertTop_l980) begin
+          if(when_I2CBertTop_l1060) begin
             fsm_stateNext = fsm_enumDef_ACKNACK;
           end
         end
@@ -1725,7 +1789,7 @@ module MyI2C (
       default : begin
       end
     endcase
-    if(when_I2CBertTop_l992) begin
+    if(when_I2CBertTop_l1072) begin
       fsm_stateNext = fsm_enumDef_RESET;
     end
     if(io_timeoutError) begin
@@ -1739,15 +1803,15 @@ module MyI2C (
     end
   end
 
-  assign when_I2CBertTop_l892 = (fsm_bitCount == 3'b111);
-  assign when_I2CBertTop_l917 = (((! sclHistory_0) || sclEdge_rise) || io_canStretch);
+  assign when_I2CBertTop_l972 = (fsm_bitCount == 3'b111);
+  assign when_I2CBertTop_l997 = (((! sclHistory5_0) || sclEdge_rise) || io_canStretch);
   assign _zz_io_bus_sdaOut = ((io_canNack && (! io_canSend)) && (! io_canRecv));
-  assign when_I2CBertTop_l923 = ((! sclHistory_0) && io_canStretch);
-  assign when_I2CBertTop_l906 = (fsm_bitCount == 3'b111);
-  assign when_I2CBertTop_l944 = (! sclHistory_0);
-  assign when_I2CBertTop_l980 = (fsm_bitCount == 3'b111);
+  assign when_I2CBertTop_l1003 = ((! sclHistory5_0) && io_canStretch);
+  assign when_I2CBertTop_l986 = (fsm_bitCount == 3'b111);
+  assign when_I2CBertTop_l1024 = (! sclHistory5_0);
+  assign when_I2CBertTop_l1060 = (fsm_bitCount == 3'b111);
   assign when_StateMachine_l253 = ((! (fsm_stateReg == fsm_enumDef_AUTOBAUD)) && (fsm_stateNext == fsm_enumDef_AUTOBAUD));
-  assign when_I2CBertTop_l992 = (isStop && (! sdaTx));
+  assign when_I2CBertTop_l1072 = (isStop && (! sdaTx));
   always @(posedge clk) begin
     if(!rst_n) begin
       timerAutobaud <= 1'b0;
@@ -1773,7 +1837,7 @@ module MyI2C (
         end
         fsm_enumDef_AUTOBAUD : begin
           if(sclEdge_rise) begin
-            if(when_I2CBertTop_l980) begin
+            if(when_I2CBertTop_l1060) begin
               timerAutobaud <= 1'b0;
             end
           end
@@ -1792,16 +1856,28 @@ module MyI2C (
 
   always @(posedge clk) begin
     if(io_timerSampleTick) begin
-      sdaHistory_1 <= sdaHistory_0;
+      sdaHistory5_1 <= sdaHistory5_0;
     end
     if(io_timerSampleTick) begin
-      sdaHistory_2 <= sdaHistory_1;
+      sdaHistory5_2 <= sdaHistory5_1;
     end
     if(io_timerSampleTick) begin
-      sclHistory_1 <= sclHistory_0;
+      sdaHistory5_3 <= sdaHistory5_2;
     end
     if(io_timerSampleTick) begin
-      sclHistory_2 <= sclHistory_1;
+      sdaHistory5_4 <= sdaHistory5_3;
+    end
+    if(io_timerSampleTick) begin
+      sclHistory5_1 <= sclHistory5_0;
+    end
+    if(io_timerSampleTick) begin
+      sclHistory5_2 <= sclHistory5_1;
+    end
+    if(io_timerSampleTick) begin
+      sclHistory5_3 <= sclHistory5_2;
+    end
+    if(io_timerSampleTick) begin
+      sclHistory5_4 <= sclHistory5_3;
     end
     sda_regNext <= sda;
     scl_regNext <= scl;
@@ -1816,14 +1892,14 @@ module MyI2C (
       fsm_enumDef_RECV : begin
         if(sclEdge_rise) begin
           shifter <= shifterNow;
-          if(!when_I2CBertTop_l892) begin
+          if(!when_I2CBertTop_l972) begin
             fsm_bitCount <= (fsm_bitCount + 3'b001);
           end
         end
       end
       fsm_enumDef_ACKNACK : begin
-        if(when_I2CBertTop_l917) begin
-          if(!when_I2CBertTop_l923) begin
+        if(when_I2CBertTop_l997) begin
+          if(!when_I2CBertTop_l1003) begin
             if(sclEdge_rise) begin
               fsm_bitCount <= 3'b000;
               if(io_canSend) begin
@@ -1836,7 +1912,7 @@ module MyI2C (
       fsm_enumDef_SEND : begin
         if(sclEdge_rise) begin
           shifter <= {shifter[6 : 0],shifter[7]};
-          if(!when_I2CBertTop_l906) begin
+          if(!when_I2CBertTop_l986) begin
             fsm_bitCount <= (fsm_bitCount + 3'b001);
           end
         end
@@ -1853,7 +1929,7 @@ module MyI2C (
       end
       fsm_enumDef_AUTOBAUD : begin
         if(sclEdge_rise) begin
-          if(!when_I2CBertTop_l980) begin
+          if(!when_I2CBertTop_l1060) begin
             fsm_bitCount <= (fsm_bitCount + 3'b001);
           end
         end
@@ -1877,7 +1953,6 @@ module Timer (
   output              io_timerSampleTick,
   output              io_canPowerOnReset,
   output              io_canStart,
-  input               io_div12active,
   input      [11:0]   io_div12,
   input      [1:0]    io_selDivisor,
   input               io_timerLoadH,
@@ -1890,7 +1965,7 @@ module Timer (
 );
 
   reg        [11:0]   endstop;
-  wire                when_I2CBertTop_l620;
+  wire                when_I2CBertTop_l679;
   reg        [11:0]   ticker_count;
   wire       [2:0]    ticker_lsbCount;
   wire                ticker_sclTick;
@@ -1904,16 +1979,16 @@ module Timer (
   wire                ticker_reset;
   reg        [2:0]    ticker_tickState;
   reg        [7:0]    ticker_endstopTmpL;
-  wire                when_I2CBertTop_l654;
-  wire                when_I2CBertTop_l660;
-  wire                when_I2CBertTop_l664;
-  wire                when_I2CBertTop_l668;
-  wire                when_I2CBertTop_l679;
-  wire                when_I2CBertTop_l688;
-  wire                when_I2CBertTop_l695;
-  wire                when_I2CBertTop_l702;
+  wire                when_I2CBertTop_l711;
+  wire                when_I2CBertTop_l717;
+  wire                when_I2CBertTop_l721;
+  wire                when_I2CBertTop_l725;
+  wire                when_I2CBertTop_l736;
+  wire                when_I2CBertTop_l745;
+  wire                when_I2CBertTop_l752;
+  wire                when_I2CBertTop_l759;
 
-  assign when_I2CBertTop_l620 = (! rst_n);
+  assign when_I2CBertTop_l679 = (! rst_n);
   assign io_timerEndstop = endstop;
   assign ticker_lsbCount = ticker_count[2 : 0];
   assign ticker_sclTick = 1'b0;
@@ -1957,11 +2032,11 @@ module Timer (
   always @(*) begin
     ticker_timeoutError = 1'b0;
     if(io_timerAutobaud) begin
-      if(when_I2CBertTop_l664) begin
+      if(when_I2CBertTop_l721) begin
         ticker_timeoutError = 1'b1;
       end
     end else begin
-      if(when_I2CBertTop_l668) begin
+      if(when_I2CBertTop_l725) begin
         ticker_timeoutError = 1'b1;
       end
     end
@@ -1969,7 +2044,7 @@ module Timer (
 
   always @(*) begin
     ticker_canStart = 1'b0;
-    if(when_I2CBertTop_l660) begin
+    if(when_I2CBertTop_l717) begin
       ticker_canStart = 1'b1;
     end
   end
@@ -1978,22 +2053,22 @@ module Timer (
     ticker_canPowerOnReset = 1'b0;
     case(io_selDivisor)
       2'b00 : begin
-        if(when_I2CBertTop_l679) begin
+        if(when_I2CBertTop_l736) begin
           ticker_canPowerOnReset = 1'b1;
         end
       end
       2'b01 : begin
-        if(when_I2CBertTop_l688) begin
+        if(when_I2CBertTop_l745) begin
           ticker_canPowerOnReset = 1'b1;
         end
       end
       2'b10 : begin
-        if(when_I2CBertTop_l695) begin
+        if(when_I2CBertTop_l752) begin
           ticker_canPowerOnReset = 1'b1;
         end
       end
       default : begin
-        if(when_I2CBertTop_l702) begin
+        if(when_I2CBertTop_l759) begin
           ticker_canPowerOnReset = 1'b1;
         end
       end
@@ -2001,21 +2076,21 @@ module Timer (
   end
 
   assign ticker_reset = (! io_timerRun);
-  assign when_I2CBertTop_l654 = (ticker_tickState == 3'b101);
-  assign when_I2CBertTop_l660 = (ticker_count == 12'h012);
-  assign when_I2CBertTop_l664 = ticker_count[11];
-  assign when_I2CBertTop_l668 = (ticker_count == endstop);
-  assign when_I2CBertTop_l679 = (ticker_count[2 : 0] == 3'b100);
-  assign when_I2CBertTop_l688 = (ticker_count[3 : 1] == 3'b100);
-  assign when_I2CBertTop_l695 = (ticker_count[4 : 2] == 3'b100);
-  assign when_I2CBertTop_l702 = (ticker_count[5 : 3] == 3'b100);
+  assign when_I2CBertTop_l711 = (ticker_tickState == 3'b101);
+  assign when_I2CBertTop_l717 = (ticker_count == 12'h012);
+  assign when_I2CBertTop_l721 = ticker_count[11];
+  assign when_I2CBertTop_l725 = (ticker_count == endstop);
+  assign when_I2CBertTop_l736 = (ticker_count[2 : 0] == 3'b100);
+  assign when_I2CBertTop_l745 = (ticker_count[3 : 1] == 3'b100);
+  assign when_I2CBertTop_l752 = (ticker_count[4 : 2] == 3'b100);
+  assign when_I2CBertTop_l759 = (ticker_count[5 : 3] == 3'b100);
   assign io_timeoutError = ticker_timeoutError;
   assign io_sclTick = ticker_sclTick;
   assign io_canStart = ticker_canStart;
   assign io_canPowerOnReset = ticker_canPowerOnReset;
   assign io_timerSampleTick = ticker_timerSampleTick;
   always @(posedge clk) begin
-    if(when_I2CBertTop_l620) begin
+    if(when_I2CBertTop_l679) begin
       endstop <= (~ io_div12);
     end
     ticker_timerSampleTickState_regNext <= ticker_timerSampleTickState;
@@ -2038,7 +2113,7 @@ module Timer (
       ticker_count <= 12'h000;
       ticker_tickState <= 3'b000;
     end else begin
-      if(when_I2CBertTop_l654) begin
+      if(when_I2CBertTop_l711) begin
         ticker_tickState <= 3'b000;
       end else begin
         ticker_tickState <= (ticker_tickState + 3'b001);
@@ -2069,10 +2144,10 @@ module ALU (
 
   wire       [7:0]    _zz_acc;
   reg        [7:0]    acc;
-  wire       [2:0]    switch_I2CBertTop_l209;
+  wire       [2:0]    switch_I2CBertTop_l268;
 
   assign _zz_acc = (acc + io_opand);
-  assign switch_I2CBertTop_l209 = {io_op2,io_op};
+  assign switch_I2CBertTop_l268 = {io_op2,io_op};
   assign io_acc = acc;
   always @(posedge clk) begin
     if(!rst_n) begin
@@ -2082,7 +2157,7 @@ module ALU (
         acc <= 8'h00;
       end else begin
         if(io_en) begin
-          case(switch_I2CBertTop_l209)
+          case(switch_I2CBertTop_l268)
             3'b000 : begin
               acc <= (acc & io_opand);
             end
@@ -2107,7 +2182,76 @@ module ALU (
 
 endmodule
 
+//AndNor5_1 replaced by AndNor5
+
+//MAJ5_1 replaced by MAJ5
+
 //AndNor3_1 replaced by AndNor3
+
+module AndNor5 (
+  input               io_a,
+  input               io_b,
+  input               io_c,
+  input               io_d,
+  input               io_e,
+  output              io_o,
+  input               clk,
+  input               rst_n
+);
+
+  reg                 state;
+  wire                and5;
+  wire                nor5;
+
+  assign and5 = (&{io_e,{io_d,{io_c,{io_b,io_a}}}});
+  assign nor5 = (! (|{io_e,{io_d,{io_c,{io_b,io_a}}}}));
+  assign io_o = state;
+  always @(posedge clk) begin
+    if(nor5) begin
+      state <= 1'b0;
+    end else begin
+      if(and5) begin
+        state <= 1'b1;
+      end
+    end
+  end
+
+
+endmodule
+
+module MAJ5 (
+  input               io_a,
+  input               io_b,
+  input               io_c,
+  input               io_d,
+  input               io_e,
+  input               io_maj3abc,
+  output              io_o
+);
+
+  wire                maj3de_A;
+  wire                maj3de_B;
+  wire                maj3de_C;
+  wire                maj3de_X;
+  wire                or3;
+  wire                or2;
+  wire       [2:0]    _zz_A;
+
+  (* keep , syn_keep *) sky130_fd_sc_hd__maj3 maj3de (
+    .A (maj3de_A), //i
+    .B (maj3de_B), //i
+    .C (maj3de_C), //i
+    .X (maj3de_X)  //o
+  );
+  assign or3 = (|{io_c,{io_b,io_a}});
+  assign or2 = (|{io_e,io_d});
+  assign _zz_A = {io_d,{io_e,or3}};
+  assign maj3de_A = _zz_A[0];
+  assign maj3de_B = _zz_A[1];
+  assign maj3de_C = _zz_A[2];
+  assign io_o = ((io_maj3abc && or2) || maj3de_X);
+
+endmodule
 
 module AndNor3 (
   input               io_a,
