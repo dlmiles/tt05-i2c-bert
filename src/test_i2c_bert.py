@@ -503,16 +503,10 @@ async def test_i2c_bert(dut):
     POWER_ON_SENSE = bool(random.getrandbits(1))
 
     dut._log.info(f"Checking #1 powerOnSense state setup {not POWER_ON_SENSE}")
-    if GL_TEST:		## FIXME temp test to see if this reduces X prop
-        if not POWER_ON_SENSE:
-            dut.uio_in.value = BinaryValue('00001000')	# SDA=0 means special power-on condition
-        else:
-            dut.uio_in.value = BinaryValue('00000000')	# SDA=1 means nomimal power-on condition
+    if not POWER_ON_SENSE:
+        dut.uio_in.value = BinaryValue('xxxx1xxx')	# SDA=0 means special power-on condition
     else:
-        if not POWER_ON_SENSE:
-            dut.uio_in.value = BinaryValue('xxxx1xxx')	# SDA=0 means special power-on condition
-        else:
-            dut.uio_in.value = BinaryValue('xxxx0xxx')	# SDA=1 means nomimal power-on condition
+        dut.uio_in.value = BinaryValue('xxxx0xxx')	# SDA=1 means nomimal power-on condition
     dut.rst_n.value = 1
     await ClockCycles(dut.clk, 1)
 
@@ -567,16 +561,10 @@ async def test_i2c_bert(dut):
     await ClockCycles(dut.clk, 1)
 
     dut._log.info(f"Checking #2 powerOnSense state setup {POWER_ON_SENSE}")
-    if GL_TEST:		## FIXME temp test to see if this reduces X prop
-        if POWER_ON_SENSE:
-            dut.uio_in.value = BinaryValue('00001000')	# SDA=0 means special power-on condition
-        else:
-            dut.uio_in.value = BinaryValue('00000000')	# SDA=1 means nomimal power-on condition
+    if POWER_ON_SENSE:
+        dut.uio_in.value = BinaryValue('xxxx1xxx')	# SDA=0 means special power-on condition
     else:
-        if POWER_ON_SENSE:
-            dut.uio_in.value = BinaryValue('xxxx1xxx')	# SDA=0 means special power-on condition
-        else:
-            dut.uio_in.value = BinaryValue('xxxx0xxx')	# SDA=1 means nomimal power-on condition
+        dut.uio_in.value = BinaryValue('xxxx0xxx')	# SDA=1 means nomimal power-on condition
     await ClockCycles(dut.clk, (1 << (DIVISOR+2))+CYCLES_PER_BIT+CYCLES_PER_HALFBIT)	# (ticks*4)+BIT+HALFBIT
 
     dut._log.info(f"Checking #2 powerOnSense state check {str(dut.uio_out.value)} expecting bit7 = {not POWER_ON_SENSE}")
