@@ -438,27 +438,29 @@ class I2CController():
 
     @property
     def sda_rx(self) -> bool:
-        if self.GL_TEST and not self._sdascl_out.raw.value.is_resolvable:
-            nv = False	# FIXME pickup RANDOM_POLICY
+        if not self._sdascl_out.raw.value.is_resolvable:
+            #nv = False	# FIXME pickup RANDOM_POLICY
             x = str(self._sdascl_out.raw.value)[-4:-2]	# "xxxx01xx" => "01" SDA SCL
             my_sda = x[0]		# bit3 is 1st char
             assert my_sda == '0' or my_sda == '1'
             nv = True if my_sda == '1' else False
-            self._dut._log.warning(f"GL_TEST I2CController.sda_rx() = {str(self._sdascl_out.raw.value)} [IS_NOT_RESOLABLE] x={x} my_sda={my_sda} using {nv}")
-            #return nv
+            # FIXME is this warning old now? remove it ?
+            self._dut._log.warning(f"GL_TEST={self.GL_TEST} I2CController.sda_rx() = {str(self._sdascl_out.raw.value)} [IS_NOT_RESOLABLE] x={x} my_sda={my_sda} using {nv}")
+            return nv
         return self._sdascl_out.value & 2 != 0
 
 
     @property
     def sda_oe(self) -> bool:
-        if self.GL_TEST and not self._sdascl_out.raw.value.is_resolvable:
-            nv = False	# FIXME pickup RANDOM_POLICY
-            x = str(self._sdascl_out.raw.value)[-4:-2]	# "xxxx01xx" => "01" SDA SCL
+        if not self._sdascl_oe.raw.value.is_resolvable:
+            #nv = False	# FIXME pickup RANDOM_POLICY
+            x = str(self._sdascl_oe.raw.value)[-4:-2]	# "xxxx01xx" => "01" SDA SCL
             my_sda_oe = x[0]		# bit3 is 1st char
             assert my_sda_oe == '0' or my_sda_oe == '1'
             nv = True if my_sda_oe == '1' else False
-            self._dut._log.warning(f"GL_TEST I2CController.sda_rx() = {str(self._sdascl_out.raw.value)} [IS_NOT_RESOLABLE] x={x} my_sda_oe={my_sda_oe} using {nv}")
-            #return nv
+            # FIXME is this warning old now? remove it ?
+            self._dut._log.warning(f"GL_TEST={self.GL_TEST} I2CController.sda_rx() = {str(self._sdascl_oe.raw.value)} [IS_NOT_RESOLABLE] x={x} my_sda_oe={my_sda_oe} using {nv}")
+            return nv
         return self._sdascl_oe.value & 2 != 0
 
 

@@ -802,8 +802,8 @@ async def test_i2c_bert(dut):
     else:
         nack = None
     # GL_TEST is getting: GL_TEST I2CController.sda_rx() = {str(self._sdascl_out)} [IS_NOT_RESOLABLE] using {nv}
-    if not GL_TEST:	## FIXME reinstante this
-        assert nack is ctrl.ACK
+    #if not GL_TEST:	## FIXME reinstante this
+    assert nack is ctrl.ACK
 
     ctrl.scl = True		## FIXME check SDA still idle
     if HALF_EDGE:
