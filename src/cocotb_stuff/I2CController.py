@@ -442,10 +442,15 @@ class I2CController():
             #nv = False	# FIXME pickup RANDOM_POLICY
             x = str(self._sdascl_out.raw.value)[-4:-2]	# "xxxx01xx" => "01" SDA SCL
             my_sda = x[0]		# bit3 is 1st char
-            assert my_sda == '0' or my_sda == '1'
+            if my_sda == 'x':
+                # FIXME try insert here: assert not PUSH_PULL_MODE
+                assert not self._modeIsPP, f"PUSH_PULL_MODE={self._modeIsPP}"	# only open-drain allowed this fixup
+                nv = True	# FIXME is this open-drain mode ?
+                # FIXME is this warning old now? remove it ?
+                self._dut._log.warning(f"GL_TEST={self.GL_TEST} I2CController.sda_rx() = {str(self._sdascl_out.raw.value)} [IS_NOT_RESOLABLE maybe due to OPEN-DRAIN] x={x} my_sda={my_sda} using {nv}")
+                my_sda = '1'
+            assert my_sda == '0' or my_sda == '1', f"my_sda={str(self._sdascl_out.raw.value)}"
             nv = True if my_sda == '1' else False
-            # FIXME is this warning old now? remove it ?
-            self._dut._log.warning(f"GL_TEST={self.GL_TEST} I2CController.sda_rx() = {str(self._sdascl_out.raw.value)} [IS_NOT_RESOLABLE] x={x} my_sda={my_sda} using {nv}")
             return nv
         return self._sdascl_out.value & 2 != 0
 
@@ -456,10 +461,14 @@ class I2CController():
             #nv = False	# FIXME pickup RANDOM_POLICY
             x = str(self._sdascl_oe.raw.value)[-4:-2]	# "xxxx01xx" => "01" SDA SCL
             my_sda_oe = x[0]		# bit3 is 1st char
-            assert my_sda_oe == '0' or my_sda_oe == '1'
+            if my_sda_oe == 'x':
+                assert False	# never happens ?  yes it does
+                nv = False	# FIXME is good default
+                # FIXME is this warning old now? remove it ?
+                self._dut._log.warning(f"GL_TEST={self.GL_TEST} I2CController.sda_oe() = {str(self._sdascl_oe.raw.value)} [IS_NOT_RESOLABLE] x={x} my_sda_oe={my_sda_oe} using {nv}")
+                my_sda_oe = '1'
+            assert my_sda_oe == '0' or my_sda_oe == '1', f"my_sda_oe={str(self._sdascl_oe.raw.value)}"
             nv = True if my_sda_oe == '1' else False
-            # FIXME is this warning old now? remove it ?
-            self._dut._log.warning(f"GL_TEST={self.GL_TEST} I2CController.sda_rx() = {str(self._sdascl_oe.raw.value)} [IS_NOT_RESOLABLE] x={x} my_sda_oe={my_sda_oe} using {nv}")
             return nv
         return self._sdascl_oe.value & 2 != 0
 
