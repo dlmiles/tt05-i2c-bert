@@ -2002,7 +2002,10 @@ async def test_i2c_bert(dut):
                 await ctrl.send_bit(bool(random.getrandbits(1)))
             await ctrl.send_stop();
 
-            # FIXME check FSM returns to HUNT
+            if not GL_TEST:        # observe FSM cycle returns to HUNT soon
+                #assert FSM.fsm_state_expected(dut, 'i2c', 'HUNT')	 # CPB <= 4 this fails
+                assert FSM.fsm_state_expected_within(dut, 'i2c', 'RESET', CYCLES_PER_BIT)
+                assert FSM.fsm_state_expected_within(dut, 'i2c', 'HUNT', CYCLES_PER_BIT)
 
             ctrl.idle()
             await ClockCycles(dut.clk, CYCLES_PER_BIT*12)
@@ -2017,9 +2020,13 @@ async def test_i2c_bert(dut):
         ctrl.idle()
 
         await ctrl.send_start()
+        if not GL_TEST:
+            assert FSM.fsm_state_expected_within(dut, 'i2c', 'RECV', CYCLES_PER_BIT)
         await ctrl.send_stop()
-
-        # FIXME check FSM returns to HUNT
+        if not GL_TEST:        # observe FSM cycle returns to HUNT soon
+            #assert FSM.fsm_state_expected(dut, 'i2c', 'HUNT')	 # CPB <= 4 this fails
+            assert FSM.fsm_state_expected_within(dut, 'i2c', 'RESET', CYCLES_PER_BIT)
+            assert FSM.fsm_state_expected_within(dut, 'i2c', 'HUNT', CYCLES_PER_BIT)
 
         ctrl.idle()
         await ClockCycles(dut.clk, CYCLES_PER_BIT*12)
@@ -2033,9 +2040,14 @@ async def test_i2c_bert(dut):
         debug(dut, '980_STOPTEST1')
 
         ctrl.idle()
+        if not GL_TEST:
+            assert FSM.fsm_state_expected(dut, 'i2c', 'HUNT')
 
         await ctrl.send_stop()
-        # FIXME observe FSM cycle RESET->HUNT
+        if not GL_TEST:        # observe FSM cycle RESET->HUNT
+            #assert FSM.fsm_state_expected(dut, 'i2c', 'HUNT')	# CPB <= 4 this fails
+            assert FSM.fsm_state_expected_within(dut, 'i2c', 'RESET', CYCLES_PER_BIT)
+            assert FSM.fsm_state_expected_within(dut, 'i2c', 'HUNT', CYCLES_PER_BIT)
 
         ctrl.idle()
 
@@ -2047,9 +2059,14 @@ async def test_i2c_bert(dut):
         debug(dut, '990_STOPTEST2')
 
         ctrl.idle()
+        if not GL_TEST:
+            assert FSM.fsm_state_expected(dut, 'i2c', 'HUNT')
 
         await ctrl.send_stop()
-        # FIXME observe FSM cycle RESET->HUNT
+        if not GL_TEST:        # observe FSM cycle RESET->HUNT
+            #assert FSM.fsm_state_expected(dut, 'i2c', 'HUNT')	# CPB <= 4 this fails
+            assert FSM.fsm_state_expected_within(dut, 'i2c', 'RESET', CYCLES_PER_BIT)
+            assert FSM.fsm_state_expected_within(dut, 'i2c', 'HUNT', CYCLES_PER_BIT)
 
         ctrl.idle()
 

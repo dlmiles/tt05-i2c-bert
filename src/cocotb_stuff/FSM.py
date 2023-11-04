@@ -11,6 +11,7 @@
 import cocotb
 from cocotb.binary import BinaryValue
 
+from .cocotbutil import *
 
 
 
