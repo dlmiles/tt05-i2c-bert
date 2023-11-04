@@ -158,7 +158,15 @@ ensure_exclude = [
     r'[\./]input\d+[\./]',
     r'[\./]input\d+$',
     r'[\./]hold\d+[\./]',
-    r'[\./]hold\d+$'
+    r'[\./]hold\d+$',
+    r'[\./]max_cap\d+[\./]',
+    r'[\./]max_cap\d+$',
+    r'[\./]wire\d+[\./]',
+    r'[\./]wire\d+$',
+    # Latches, don't mess with those (as they expect to be zero on powerup)
+    r'[\./]i2c_bert\.latched\[\d]+',
+    r'[\./]i2c_bert\.powerOnSense[\./]',
+    r'[\./]i2c_bert\.powerOnSenseCaptured[\./]'
 ]
 ENSURE_EXCLUDE_RE = dict(map(lambda k: (k,re.compile(k)), ensure_exclude))
 
@@ -884,84 +892,8 @@ async def test_i2c_bert(dut):
 
     ##############################################################################################
 
-    if run_this_test(True):
-        debug(dut, '100_ACK_wr')
-
-        await ctrl.send_start()
-
-        await ctrl.send_data(0x80)
-        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        assert nack is ctrl.ACK
-
-        assert await ctrl.check_recv_is_idle()
-        await ctrl.send_stop()
-        ctrl.idle()
-        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
-
-        debug(dut, '')
-        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
-
-    ##############################################################################################
-
-    if run_this_test(True):
-        debug(dut, '110_ACK_rd')
-
-        await ctrl.send_start()
-
-        await ctrl.send_data(0x81)
-        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
-        assert nack is ctrl.ACK
-
-        assert await ctrl.check_recv_is_idle()
-        await ctrl.send_stop()
-        ctrl.idle()
-        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
-
-        debug(dut, '')
-        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
-
-    ##############################################################################################
-
-    if run_this_test(True):
-        debug(dut, '120_NACK_wr')
-
-        await ctrl.send_start()
-
-        await ctrl.send_data(0x84)
-        nack = await ctrl.recv_ack(ctrl.NACK, CAN_ASSERT)
-        assert nack is ctrl.NACK	# NACK
-
-        assert await ctrl.check_recv_is_idle()
-        await ctrl.send_stop()
-        ctrl.idle()
-        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
-
-        debug(dut, '')
-        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
-
-    ##############################################################################################
-
-    if run_this_test(True):
-        debug(dut, '130_NACK_rd')
-
-        await ctrl.send_start()
-
-        await ctrl.send_data(0x85)
-        nack = await ctrl.recv_ack(ctrl.NACK, CAN_ASSERT)
-        assert nack is ctrl.NACK	# NACK
-
-        assert await ctrl.check_recv_is_idle()
-        await ctrl.send_stop()
-        ctrl.idle()
-        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
-
-        debug(dut, '')
-        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
-
-    ##############################################################################################
-
-    if run_this_test(True):
-        debug(dut, '140_GETCFG')
+    if run_this_test(True):		# moved above ACK/NACK as it confirms the h/w view of PP/OD
+        debug(dut, '100_GETCFG')
 
         await ctrl.send_start()
 
@@ -981,6 +913,82 @@ async def test_i2c_bert(dut):
         assert data == v
 
         ctrl.sda_idle()
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    if run_this_test(True):
+        debug(dut, '110_ACK_wr')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0x80)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        assert nack is ctrl.ACK
+
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    if run_this_test(True):
+        debug(dut, '120_ACK_rd')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0x81)
+        nack = await ctrl.recv_ack(ctrl.ACK, CAN_ASSERT)
+        assert nack is ctrl.ACK
+
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    if run_this_test(True):
+        debug(dut, '130_NACK_wr')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0x84)
+        nack = await ctrl.recv_ack(ctrl.NACK, CAN_ASSERT)
+        assert nack is ctrl.NACK	# NACK
+
+        assert await ctrl.check_recv_is_idle()
+        await ctrl.send_stop()
+        ctrl.idle()
+        assert await ctrl.check_recv_has_been_idle(CYCLES_PER_BIT*3)
+
+        debug(dut, '')
+        await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
+
+    ##############################################################################################
+
+    if run_this_test(True):
+        debug(dut, '140_NACK_rd')
+
+        await ctrl.send_start()
+
+        await ctrl.send_data(0x85)
+        nack = await ctrl.recv_ack(ctrl.NACK, CAN_ASSERT)
+        assert nack is ctrl.NACK	# NACK
+
         assert await ctrl.check_recv_is_idle()
         await ctrl.send_stop()
         ctrl.idle()
