@@ -10,8 +10,18 @@
 #			of the simulation to speed it up.  Keeping them running is only useful to observe
 #			the timing of when an FSM changes state (if that is important for diagnostics)
 #	PUSH_PULL_MODE=true
-#	SCL_MODE=0	# SCL source: 0=RegNext, 1=MAJ3, 2=3DFF-synchronizer, 3=ANDNOR3-unanimous
-#	DIVISOR=0	# Sample Tick divisor 0=1:1,  1=1:2,  2=1:4,  3=1:8
+#	SCL_MODE=0	SCL source: 0=RegNext
+#                                   1=MAJ3
+#                                   2=3DFF-synchronizer
+#                                   3=ANDNOR3-unanimous
+#                                   4=5DFF-synchronizer
+#                                   5=MAJ5 (almost majority voter 5)
+#                                   6=DIRECT (raw signal)
+#                                   7=ANDNOR5-unanimous
+#	DIVISOR=0	Sample Tick divisor: 0=1:1
+#                                            1=1:2
+#                                            2=1:4
+#                                            3=1:8
 #
 #  PUSH_PULL_MODE=true make
 #  PUSH_PULL_MODE=true GATES=yes make
@@ -224,6 +234,14 @@ def SCL_MODE_description(v: int) -> str:
         return '3DFF-synchronizer'
     elif v == 3:
         return 'ANDNOR3-unanimous'
+    elif v == 4:
+        return '5DFF-synchronizer'
+    elif v == 5:
+        return 'MAJ5'
+    elif v == 6:
+        return 'DIRECT'
+    elif v == 7:
+        return 'ANDNOR5-unanimous'
     else:
         return 'UNKNOWN'
 
@@ -423,12 +441,15 @@ async def test_i2c_bert(dut):
 
     if GL_TEST and 'RANDOM_POLICY' in os.environ:
         await ClockCycles(dut.clk, 1)		## crank it one tick, should assign some non X states
-        if os.environ['RANDOM_POLICY'] == 'zero' or os.environ['RANDOM_POLICY'].lower() == 'false':
+        if os.environ['RANDOM_POLICY'].casefold() == 'zero' or os.environ['RANDOM_POLICY'].casefold() == 'false':
             ensure_resolvable(dut, policy=False, filter=ensure_exclude_re_path)
-        elif os.environ['RANDOM_POLICY'] == 'one' or os.environ['RANDOM_POLICY'].lower() == 'true':
+        elif os.environ['RANDOM_POLICY'].casefold() == 'one' or os.environ['RANDOM_POLICY'].casefold() == 'true':
             ensure_resolvable(dut, policy=True, filter=ensure_exclude_re_path)
-        else: # if os.environ['RANDOM_POLICY'] == 'random':
+        elif os.environ['RANDOM_POLICY'].casefold() == 'random':
             ensure_resolvable(dut, policy='random', filter=ensure_exclude_re_path)
+        else:
+            assert False, f"RANDOM_POLICY={os.environ['RANDOM_POLICY']} is not supported"
+        await ClockCycles(dut.clk, 1)
 
     await ClockCycles(dut.clk, 1)
     dut.ui_in.value = 0
@@ -482,22 +503,28 @@ async def test_i2c_bert(dut):
     POWER_ON_SENSE = bool(random.getrandbits(1))
 
     dut._log.info(f"Checking #1 powerOnSense state setup {not POWER_ON_SENSE}")
-    if not POWER_ON_SENSE:
-        dut.uio_in.value = BinaryValue('xxxx1xxx')	# SDA=0 means special power-on condition
+    if GL_TEST:		## FIXME temp test to see if this reduces X prop
+        if not POWER_ON_SENSE:
+            dut.uio_in.value = BinaryValue('00001000')	# SDA=0 means special power-on condition
+        else:
+            dut.uio_in.value = BinaryValue('00000000')	# SDA=1 means nomimal power-on condition
     else:
-        dut.uio_in.value = BinaryValue('xxxx0xxx')	# SDA=1 means nomimal power-on condition
+        if not POWER_ON_SENSE:
+            dut.uio_in.value = BinaryValue('xxxx1xxx')	# SDA=0 means special power-on condition
+        else:
+            dut.uio_in.value = BinaryValue('xxxx0xxx')	# SDA=1 means nomimal power-on condition
     dut.rst_n.value = 1
     await ClockCycles(dut.clk, 1)
 
     # Let the timer.canPowerOnReset fire
-    await ClockCycles(dut.clk, (1 << (DIVISOR+2))+CYCLES_PER_HALFBIT)	# (ticks*4)+HALFBIT
+    await ClockCycles(dut.clk, (1 << (DIVISOR+2))+CYCLES_PER_BIT+CYCLES_PER_HALFBIT)	# (ticks*4)+BIT+HALFBIT
     dut._log.info(f"Checking #1 powerOnSense state check {str(dut.uio_out.value)} expecting bit7 = {POWER_ON_SENSE}")
     # Validate powerOnSense captured
     if not sim_config.is_verilator:
         if not POWER_ON_SENSE:
-            assert sim_config.bv_compare_x(str(dut.uio_out.value), '0???????', False, force=GL_TEST)
+            assert sim_config.bv_compare_x(str(dut.uio_out.value), '0???????', False, force=GL_TEST), f"uio_out=str(dut.uio_out.value)"
         else:
-            assert sim_config.bv_compare_x(str(dut.uio_out.value), '1???????', False, force=GL_TEST)
+            assert sim_config.bv_compare_x(str(dut.uio_out.value), '1???????', False, force=GL_TEST), f"uio_out=str(dut.uio_out.value)"
 
     dut.rst_n.value = 0
     await ClockCycles(dut.clk, 4)
@@ -507,12 +534,11 @@ async def test_i2c_bert(dut):
     # Reset state setup
     v = 0
     # LATCHED is now the same layout as GETCFG
-    v = SCL_MODE & 0x3
+    v = SCL_MODE & 0x7
     if PUSH_PULL_MODE:
-        v |= 0x04
-    if DIV12 != 0:
         v |= 0x08
-        v |= DIV12 << 4
+    if DIV12 != 0:
+        v |= (DIV12 & 0xfff) << 4
     LATCHED_00_08 = v
 
     LATCHED_00 = LATCHED_00_08 & 0xff 		# 0x34
@@ -541,20 +567,26 @@ async def test_i2c_bert(dut):
     await ClockCycles(dut.clk, 1)
 
     dut._log.info(f"Checking #2 powerOnSense state setup {POWER_ON_SENSE}")
-    if POWER_ON_SENSE:
-        dut.uio_in.value = BinaryValue('xxxx1xxx')	# SDA=0 means special power-on condition
+    if GL_TEST:		## FIXME temp test to see if this reduces X prop
+        if POWER_ON_SENSE:
+            dut.uio_in.value = BinaryValue('00001000')	# SDA=0 means special power-on condition
+        else:
+            dut.uio_in.value = BinaryValue('00000000')	# SDA=1 means nomimal power-on condition
     else:
-        dut.uio_in.value = BinaryValue('xxxx0xxx')	# SDA=1 means nomimal power-on condition
-    await ClockCycles(dut.clk, (1 << (DIVISOR+2))+CYCLES_PER_HALFBIT)	# (ticks*4)+HALFBIT
+        if POWER_ON_SENSE:
+            dut.uio_in.value = BinaryValue('xxxx1xxx')	# SDA=0 means special power-on condition
+        else:
+            dut.uio_in.value = BinaryValue('xxxx0xxx')	# SDA=1 means nomimal power-on condition
+    await ClockCycles(dut.clk, (1 << (DIVISOR+2))+CYCLES_PER_BIT+CYCLES_PER_HALFBIT)	# (ticks*4)+BIT+HALFBIT
 
     dut._log.info(f"Checking #2 powerOnSense state check {str(dut.uio_out.value)} expecting bit7 = {not POWER_ON_SENSE}")
 
     # Validate powerOnSense captured
     if not sim_config.is_verilator:
         if POWER_ON_SENSE:
-            assert sim_config.bv_compare_x(str(dut.uio_out.value), '0???????', False, force=GL_TEST)
+            assert sim_config.bv_compare_x(str(dut.uio_out.value), '0???????', False, force=GL_TEST), f"uio_out=str(dut.uio_out.value)"
         else:
-            assert sim_config.bv_compare_x(str(dut.uio_out.value), '1???????', False, force=GL_TEST)
+            assert sim_config.bv_compare_x(str(dut.uio_out.value), '1???????', False, force=GL_TEST), f"uio_out=str(dut.uio_out.value)"
 
     # Let the timer.canPowerOnReset fire
     await ClockCycles(dut.clk, CYCLES_PER_BIT*4)
@@ -949,11 +981,11 @@ async def test_i2c_bert(dut):
         dut._log.info(f"GETCFG[0] = {str(data)}  0x{data:02x}")
         await ctrl.send_ack()
         # GETCFG is now the same layout as LATCHED
-        # bit0.1  SCL MODE
-        # bit2    PULLUP MODE
-        v = SCL_MODE & 0x3	# [1:0]
+        # bit0.2  SCL MODE
+        # bit3    PULLUP MODE
+        v = SCL_MODE & 0x7	# [2:0]
         if PUSH_PULL_MODE:
-            v |= 0x04		# bit2
+            v |= 0x08		# bit3
         if not GL_TEST:		## FIXME reinstate this
             assert data == v
 
@@ -1402,12 +1434,12 @@ async def test_i2c_bert(dut):
             assert nack is ctrl.ACK
 
         # GETCFG not the same layout as LATCHED
-        # bit0..1  SCL MODE
-        # bit2     PULLUP MODE
+        # bit0..2  SCL MODE
+        # bit3     PULLUP MODE
         v = 0
-        v = SCL_MODE & 0x3	# [1:0]
+        v = SCL_MODE & 0x7	# [2:0]
         if PUSH_PULL_MODE:
-            v |= 0x04	# bit2
+            v |= 0x08	# bit3
         if not GL_TEST:	## FIXME reinstate this
             assert data == v
         data = v
