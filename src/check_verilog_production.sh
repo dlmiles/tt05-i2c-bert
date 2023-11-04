@@ -69,13 +69,20 @@ then
 		-e '\/^  .*put .*simulation.*/d' \
 		-i "$VERILOG_FILE"
 
-	if [ $patch_synthesis -gt 0 ] && false  ## DISABLED to test alternative method
+	if [ $patch_synthesis -gt 0 ]
 	then
 		echo "###"
 		echo "### patch_synthesis=$patch_synthesis"
 		echo "###"
+
+		## DISABLED to test alternative method
 		# Add _2 suffix to SKY130 cells
-		sed -e 's/ sky130_\([^ ]\+\) / sky130_\1_2 /' -i "$VERILOG_FILE"
+		#sed -e 's/ sky130_\([^ ]\+\) / sky130_\1_2 /' -i "$VERILOG_FILE"
+
+		# So for IC flow synthesis there is no timescale, this is a simulation concept
+		sed	-e '/`timescale/i\`ifdef TIMESCALE' \
+			-e '/`timescale/a\`endif' \
+			-i "$VERILOG_FILE"
 	fi
 
 	diff -u "${VERILOG_FILE}.gds_orig" "$VERILOG_FILE" || true
