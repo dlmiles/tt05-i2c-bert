@@ -1,0 +1,91 @@
+name: test
+# either manually started, or after (HDL generation) spinalhdl runs
+on:
+  workflow_dispatch:
+  # This mechanism only works for the default branch
+  workflow_run:
+    workflows:
+      - spinalhdl
+    types:
+      - completed
+  #  branches:
+  #    #- 'main'
+  #    - 'dev'
+  #push:
+    #branches:
+      #- 'dev'
+      #- 'main'
+
+jobs:
+  test:
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    # ubuntu
+    runs-on: ubuntu-latest
+    steps:
+    # need the repo checked out
+    - name: checkout repo
+      uses: actions/checkout@v3
+
+    - name: Download - spinalhdl-generated
+      uses: dawidd6/action-download-artifact@7132ab516fba5f602fafae6fdd4822afa10db76f
+      with:
+        workflow: spinalhdl.yaml
+        name: spinalhdl-generated
+        path: spinalhdl-generated/
+
+    - name: Prepare - spinalhdl-generated
+      shell: bash
+      run: |
+        cp -av spinalhdl-generated/*.v src/
+
+    - name: install oss-cad-suite
+      uses: dlmiles/tt-gds-action/oss-cad-suite-install@tt05
+      with:
+          # Need to explicitly pass as input.token into composite action
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: setup verilator
+      run: |
+        # Needs working native C toolchain and coverage report tools
+        sudo -E apt-get install -y build-essential lcov
+
+        # Just to show how out-of-date these packages maybe
+        #apt-cache show verilator || true
+        # Probably does not exist
+        #apt-cache show cocotb || true
+
+    - name: test
+      run: |
+        source "$OSS_CAD_SUITE_HOME/environment"
+        cd src
+
+        # Setup matrix ?
+
+        make clean
+        rm -f results.xml
+
+        make
+        test -f results.xml
+
+        # make will return success even if the test fails, so check for failure in the results.xml
+        ! grep failure results.xml
+
+    - run: |
+        yosys --version
+        iverilog -V
+        cocotb-config --libpython
+        cocotb-config --python-bin
+        verilator --version
+        # Want composite action to report package version
+        # Want composite action to report.xml results (for matrix of testing params)
+        echo "### TEST (fixme move to composite action)" >> $GITHUB_STEP_SUMMARY
+
+    - name: upload vcd
+      if: success() || failure()
+      uses: actions/upload-artifact@v3
+      with:
+          name: test-vcd
+          path: |
+            src/*.vcd
+            src/*.fst
+
