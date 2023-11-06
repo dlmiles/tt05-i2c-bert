@@ -20,19 +20,30 @@ GHA actions includes:
  * Verilator / Cocotb coverage testing and report
  * Online browser of VCD outputs (using Surfer viewer)
 
+(https://dlmiles.github.io/tt05-i2c-bert/asciidoc/)[Full Project Documentation and User Manual]
+
 
 ## I2C Peripheral
 
  * 8-bit ALU write with accumulator (AND, OR, XOR, ADD) on the end of I2C.
- * 8-bit ALU read with accumulator (repeat, ROL, INVERT, ADD1) on the end of I2C.
+ * 8-bit ALU read with accumulator (repeat) on the end of I2C.
+ * 8-bit RECV read with accumulator (ADD1) 
 
  * Send fixed size commands.
  * Received (generate) read response data.
 
  * Supports Open-Drain (default) and Push Pull line modes.
- * Supports SCL origin mode (RegNext, MAJ3, 3DFF-synchronizer, ANDNOR3-unanimous)
+
+ * Supports SCL/SDA origin mode (RegNext, MAJ3, 3DFF-synchronizer, ANDNOR3-unanimous,
+   5DFF-synchronizer, MAJ5, DIRECT/RAW, ANDNOR5-unanimous)
    These represent methods of line noise immunity for serial communications
+
  * Supports fixed divisor mode for sample tick 1:1, 1:2, 1:4, 1:8 with master clock.
+
+ * Supports a wide range of master CLK frequencies, I2C communication should
+   be possible down to 1:3, as an example of expectations at 10MHz clock
+   fast-mode I2C 400Kbps is possible at 1:25.  Ideally with more working on
+   hardware design time 1:2 should be possible.
 
  * ACK generator
  * NACK generator
@@ -50,6 +61,29 @@ GHA actions includes:
  * Read/Write Length Register (high 8 bits of 12 bits)
  * Read 32bit Latched Configuration data
 
+## Clock rate table
+
+This informaiton is based on testbench projections for the limits of the
+design.
+
+|  Master Clock  | I2C Bit Rate | Ratio | 1-stage | 2-stage | 3-stage | 5-stage |
+| -------------: | -----------: | --:-- | ---:--- | ---:--- | ---:--- | ---:--- |
+|        500 Khz |              |       |         |         |         |         |
+|          1 MHz |      ??? bps | ??:?? |   1:1   |         |         |         |
+|         10 MHz |      400 bps |  1:25 |   1:1   |   1:2   |   1:4   |         |
+|         25 MHz |              |       |         |         |         |         |
+|         50 MHz |              |       |   1:8   |         |         |         |
+|         66 Mhz |              |       |   1:8   |         |         |         |
+
+The design has passed STA and PNR for CLOCK_PERIOD=15 (66.66 MHz)
+
+The noise immunity method trades clock to sample ratios (thus lowering
+maximum I2C bit rate) for improved noise immunity characterstics.
+
+1-stage relates to modes: RegNext, DIRECT/RAW
+2-stage relates to modes: (not included in tt05, 2DFF-synchronizer, ANDNOR2-unanimous)
+3-stage relates to modes: MAJ3, 3DFF-synchronizer, ANDNOR3-unanimous
+5-stage relates to modes: MAJ5, 5DFF-synchronizer, ANDNOR5-unanimous
 
 ## Latching configuration bits on ENA rise and RST_N rise
 
@@ -90,11 +124,15 @@ soon thereafter.
 
 ## TODO if there is time
 
-AUTOBAUD clocking mode, with no SCL.
-STRETCH tester.
-MAJ3 ticker mode (every 1, 2, 4, 8 clocks)
+* AUTOBAUD clocking mode, with no SCL
+* STRETCH tester
 
-AsciiDoc outline of command and response system
+* Additional sample modes: ANDNOR2-unanimous, 2DFF-synchronizer, ...
+
+* 8-bit ALU read with accumulator (repeat, ROL, INVERT, ADD1) on the end of I2C. 
+  This did not make TT05 in the form I expected.
+
+* AsciiDoc outline of command and response system
 
 A few areas not covered yet in coverage report.
 
