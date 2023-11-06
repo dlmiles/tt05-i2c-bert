@@ -69,7 +69,7 @@ documentation:
 
       Other than the default divider setup for CLOCKMUX mode there is no restriction upon the system clock
       used, other than trying to operate at low ratios of system-clock:SCL.  The design has been simulated from
-      "6:1" upto 1000000:1.  Maybe lower than 6:1 are possible.
+      "3:1" upto 1000000:1.  Maybe lower than 3:1 is possible.
 
 # Instructions on how someone could test your project, include things like what buttons do what and how to set the clock if needed
   how_to_test:  |
