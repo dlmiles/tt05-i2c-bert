@@ -1,0 +1,24 @@
+name: sta_reporter
+# either manually started, or after (GDS generation) gds runs
+
+on:
+  workflow_dispatch:
+  # This mechanism only works for the default branch
+  workflow_run:
+    workflows:
+      - gds
+    types:
+      - completed
+
+jobs:
+  sta_reporter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Run sta_reporter
+        uses: dlmiles/tt-gds-action/sta_reporter@tt05
+
