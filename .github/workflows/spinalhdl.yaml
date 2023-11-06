@@ -1,0 +1,58 @@
+name: spinalhdl
+# either manually started, or on a schedule
+on: [ push, workflow_dispatch ]
+
+jobs:
+  generate-hdl:
+    # ubuntu
+    runs-on: ubuntu-latest
+    steps:
+    # need the repo checked out
+    - name: checkout repo
+      uses: actions/checkout@v3
+
+    # install oss fpga tools
+    - name: install oss-cad-suite
+      uses: YosysHQ/setup-oss-cad-suite@v2
+      with:
+          python-override: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+    - run: | 
+        yosys --version
+        iverilog -V
+        cocotb-config --libpython
+        cocotb-config --python-bin
+
+    - name: Java
+      uses: actions/setup-java@v3
+      with:
+        distribution: temurin
+        java-version: 17
+
+    - name: 'SBT: compile +test'
+      run: cd spinalhdl && sbt compile +test
+
+    - name: 'SBT: Simulate'
+      run: cd spinalhdl && sbt "runMain projectname.MyTopLevelSim"
+    
+    - name: 'SBT: Formal Verification'
+      run: cd spinalhdl && sbt "runMain projectname.MyTopLevelFormal"
+    
+    - name: 'SBT: Generate Verilog'
+      run: cd spinalhdl && sbt "runMain projectname.MyTopLevelVerilog"
+
+    - name: 'SBT: Generate VHDL'
+      run: cd spinalhdl && sbt "runMain projectname.MyTopLevelVhdl"
+
+    - name: Upload - prepare
+      shell: bash
+      run: |
+        mkdir dist
+        find spinalhdl/hw/gen \( -name "*.v" -or -name "*.vhd*" \) -exec cp -av {} dist/ \;
+        find spinalhdl/simWorkspace \( -name "*.vcd" -or -name "*.fst" \) -exec cp -av {} dist/ \;
+
+    - name: Upload - perform
+      uses: actions/upload-artifact@v3
+      with:
+        name: spinalhdl-generated
+        path: dist/
