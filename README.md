@@ -24,13 +24,15 @@ GHA actions includes:
 ## I2C Peripheral
 
  * 8-bit ALU write with accumulator (AND, OR, XOR, ADD) on the end of I2C.
- * 8-bit ALU read with accumulator (repeat, ROL, INVERT, ADD1) on the end of I2C.
+ * 8-bit ALU read with accumulator (repeat) on the end of I2C.
+ * 8-bit RECV read with accumulator (ADD1) 
 
  * Send fixed size commands.
  * Received (generate) read response data.
 
  * Supports Open-Drain (default) and Push Pull line modes.
- * Supports SCL origin mode (RegNext, MAJ3, 3DFF-synchronizer, ANDNOR3-unanimous)
+ * Supports SCL/SDA origin mode (RegNext, MAJ3, 3DFF-synchronizer, ANDNOR3-unanimous,
+   5DFF-synchronizer, MAJ5, DIRECT/RAW, ANDNOR5-unanimous)
    These represent methods of line noise immunity for serial communications
  * Supports fixed divisor mode for sample tick 1:1, 1:2, 1:4, 1:8 with master clock.
 
@@ -90,11 +92,15 @@ soon thereafter.
 
 ## TODO if there is time
 
-AUTOBAUD clocking mode, with no SCL.
-STRETCH tester.
-MAJ3 ticker mode (every 1, 2, 4, 8 clocks)
+* AUTOBAUD clocking mode, with no SCL
+* STRETCH tester
 
-AsciiDoc outline of command and response system
+* Additional sample modes: ANDNOR2-unanimous, 2DFF-synchronizer, ...
+
+* 8-bit ALU read with accumulator (repeat, ROL, INVERT, ADD1) on the end of I2C. 
+  This did not make TT05 in the form I expected.
+
+* AsciiDoc outline of command and response system
 
 A few areas not covered yet in coverage report.
 
