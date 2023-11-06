@@ -1,4 +1,8 @@
-![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg) ![](../../workflows/wokwi_test/badge.svg)
+![](../../workflows/spinalhdl/badge.svg) ![](../../workflows/wokwi_test/badge.svg) ![](../../workflows/test/badge.svg)
+![](../../workflows/gds/badge.svg) ![](../../workflows/sta_reporter/badge.svg) ![](../../workflows/coverage/badge.svg)
+![](../../workflows/docs/badge.svg)
+
+
 
 # TT05 I2C (BERT) Bit Error Rate Tester / Echo ALU Peripheral
 
