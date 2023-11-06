@@ -9,15 +9,19 @@
 #	MONITOR=no-suspend Disables an optimization to suspend the FSM monitors (if active) around parts
 #			of the simulation to speed it up.  Keeping them running is only useful to observe
 #			the timing of when an FSM changes state (if that is important for diagnostics)
-#	PUSH_PULL_MODE=true
-#	SCL_MODE=0	SCL source: 0=RegNext
-#                                   1=MAJ3
+#	PUSH_PULL_MODE=false	false=open-drain
+#				true=push-pull
+#	SCL_MODE=0	SCL source: 0=RegNext (just 1 register)
+#                                   1=MAJ3 (majority voter 3 cell)
 #                                   2=3DFF-synchronizer
 #                                   3=ANDNOR3-unanimous
 #                                   4=5DFF-synchronizer
 #                                   5=MAJ5 (almost majority voter 5)
 #                                   6=DIRECT (raw signal)
 #                                   7=ANDNOR5-unanimous
+#
+#			TODO		ANDNOR2-unanimous
+#
 #	DIVISOR=0	Sample Tick divisor: 0=1:1
 #                                            1=1:2
 #                                            2=1:4
