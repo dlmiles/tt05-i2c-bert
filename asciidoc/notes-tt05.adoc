@@ -1,0 +1,111 @@
+
+# TT05 I2C (BERT) Bit Error Rate Tester / Echo ALU Peripheral
+
+Notes from submissions:
+	config.tcl has CLOCK_PERIOD="15" (ns) for STR reporting against 66.66MHz.
+
+	STA report was clean all but 4 'max slew' in Slowest corner, all VIOLATIONs just
+	+0.01ns over 0.75 limit, less than 1.25% over limit.  The max transition is
+	1.5ns so well within cell limits.  This slew matter was not an issue for TT.
+	So this was considered benign for this project, even if I get to
+	clock it at 66Mhz.
+
+
+I start this project around 10 days before, the main project is in SpinalHDL
+and I did have an outline I2C implementation to work from (that has not been
+tested/verified).  The original I2C implementation was desdigned around
+being a CPU debug port function over a single communications wire.
+
+An amount of time was spent hung up on GL simulation X propagation and it
+not testing well.  I only found the real cause of the issue in the final few
+hours (a copy-and-paste typo).
+
+The project doesn't particular need a specific master clock rate, and part
+of the design is to allow the variable master clock rate to be tested for
+error and capture rates in the range of speeds traditional I2C operatoes.
+
+I did not have time to pay special attention to trying to achieve maximum
+I2C clock rate to master clock rate ratios.  Only 1:3 has succeeded in
+testbenches.
+
+
+Due to adding the ALU read and RECV changes in the last few days, it appears
+after reviewing logs my intention was it to be an ALU(read) operation and
+not a RECV operation.  So the RECV now performs ADD1 while the ALU(read)
+repeats the value.  The intention was to have ALU(read) have 4 modes, repeat
+accumulator value, rotate-left-accumulator, invert-accumulator,
+add-one-and-accumulate).
+
+The AUTOBAUD and STRETCH features did not make it, due to time constraints,
+I spent the time checking a validating the SEL_MODE (noise immunity filters).
+
+
+
+The testbenches a number of options exist to try to cover as much ground as
+possible:
+
+make clean
+make  ## standard iverlog/cocotb with defaults
+
+make clean
+SIM=verilator make  ## standard verilator/cocotb with defaults
+
+make clean
+\# standard iverilog/cocotb gate level testing (needs tt_um_dlmiles_tt05_i2c_bert.v from flow)
+\# delay-1 gatelevel simulation
+GATES=yes make
+
+make clean
+\# SDF gatelevel simulation (TODO needs tt_um_dlmiles_tt05_i2c_bert.v and *.sdf file from flow)
+SIM=cvc make
+
+
+On top of these 3 main method to simulate, the 2-state (Verilator) and the
+gate-level simulations, you can specify a policy for initial random state
+
+RANDOM_POLICY=one
+RANDOM_POLICY=zero
+RANDOM_POLICY=random
+
+
+On top of these there are then a number of options to change the simulation
+circumstances under test:
+
+PUSH_PULL_MODE=false  	# open-drain I2C line signalling - this is the default
+PUSH_PULL_MODE=true   	# push-pull I2C line signalling
+SCL_MODE=0		# SCL and SDA source filter mode
+DIV12=0                 # timer endstop setting on power-up (inverted, so 0 means 12bit max of 4095)
+CYCLES_PER_BIT=28	# The number of master clock cycles per SDA bit width (smaller numbers means higher I2C bandwidth, 3 is the minimum seen working under test)
+			# The default is setup for assuming 10MHz and wanting I2C fast-mode (400kbps)
+			# a kind of middle of the middle expectations on
+			# both sides (system clock frequency and I2C
+			# bandwidth)
+
+I can say a number of combinations of these operating parameters were tested
+so there is a high change of success.  But by submission time I had not had
+time to itergrate into github actions.
+
+
+
+# TODO
+
+Have a mode to disable the timeoutError condition.  Need to test that a STOP
+sequence will force it to reset, so the controller has a mechanism (that
+does not involved a hardware reset) to bring.  With this the timeoutError
+can be entire optional ?
+
+Revert the timeout timer back into the original design goal for an auto-baud
+with clockless (no SCL) line version of I2C.  This is an area to explore in
+the future a 1-wire version of I2C for a point-to-point setup (1 controller, 1
+peripheral)
+
+Rename SCL_MODE to FILTER_MODE
+Rename DIV12 to timeout
+
+Add more filter modes:
+ANDNOR2-unamibious
+
+DFF2-synchronizer
+DFF4-synchronizer
+
+

@@ -1,0 +1,12 @@
+
+# TT05 I2C (BERT) Bit Error Rate Tester / Echo ALU Peripheral
+
+* Project outline
+
+Design goals and limits
+
+I2C Command strictures
+
+RP4020 code snippets and firmware (TODO)
+
+
