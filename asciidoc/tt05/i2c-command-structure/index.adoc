@@ -1,0 +1,19 @@
+
+== TT05 I2C Command Structure
+
+The I2C protocol uses the first byte from the controller initiated transfer to
+provide a target address.  Since the design goal is to test point-to-point
+(single controller and single pherpieral) context, the address byte is the
+devices command byte.  It in-effect consumes multiple I2C addresses on the
+bus for itself.
+
+Command Mnemonic (the commands follow the I2C bit0 write(bit0=0) and
+read(bit1=1) state, where a write transaction broadly speaking has a
+side-effect.
+
+
+CMD_RESET
+CMD_SETLED
+
+CMD_GETLED
+GET_LATCH

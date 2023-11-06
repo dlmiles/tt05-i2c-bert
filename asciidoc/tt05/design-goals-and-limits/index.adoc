@@ -1,0 +1,10 @@
+
+== TT05 Design Goals and Limits
+
+The TinyTapeout-05 edition supports a wide range of clock rates within the
+design limits of the PCB, RP2040 clock generator and the IC using the SKY130
+process technology.  It is expected this range is between 0 and 66MHz (with the
+known limitation of the gpiov2 cells used for chip IO having a 66MHz limit,
+while the RP2040 as a clock generator may strugle above 50Mhz).
+
+

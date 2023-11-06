@@ -1,0 +1,16 @@
+
+== TT05 Project Outline
+
+This is an attempt to provide a hardware project that can quantify the production
+process and resulting ICs capability in respect of moderate and low speed
+serial communications.
+
+It would be expected to be able to use the results to also quantify operating
+capability with asynchronous-serial (such as UART) based on the numbers.
+
+
+
+The project does not make provision for achieving better than 1:3 global
+clock to I2C clock (SCL) clocking ratios, such as needed for very high-speed
+I2C that maybe trying to work nearer the maximum limits of the technology.
+

@@ -1,0 +1,71 @@
+
+== TT05 RP2040 Code Snippets
+
+There is an example code snippet that might be able to (untested) solicit feedback via
+the TT PCB 7-segment display.
+
+[,C]
+----
+#include <stdio.h>
+#include "pico/stdlib.h"
+#include "pico/multicore.h"
+
+// spinner with blank
+static const char   SPINNER_WITH_BLANK[] = { 0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40 };
+static const size_t SPINNER_WITH_BLANK_count = 8;
+
+#define DELAY_MS 1000
+
+#define CMD_SETLED 0xd0
+#define CMD_GETLED 0xd1
+#define CMD_RESET  0xf0
+
+static void
+setup() {
+  // Check "ChipRom" for TT shuttleID
+
+  // Project selection and reset procedure
+
+  // Setup GPIO ??(SCL) and ??(SDA)
+  i2c_setup();
+  // Setup standard I2C speed (100kbps)
+
+  sleep_ms(DELAY_MS);
+
+  // Send CMD_RESET
+
+  // Send CMD_SETLED (0xff)
+  sleep_ms(DELAY_MS);
+
+  // Send CMD_SETLED (0x00)
+  sleep_ms(DELAY_MS);
+}
+
+static void
+main_loop(const u_int8_t *data, size_t datalen, int delay_ms) {
+  for(size_t i = 0; i < datalen; i++) {
+    sleep_ms(delay_ms);
+    const u_int8_t payload = data[i];
+    // printf("Sending I2C CMD_SETLEN(0x%02x)\n", cmd, payload);
+    // i2c_send_byte(CMD_SETLED);
+    // i2c_send_byte(payload);
+    // i2c_stop();
+
+    // i2c_send_byte(CMD_GETLED);
+    // u_int8_t = data = i2c_recv_byte_and_ack();
+    // i2c_stop();
+    // printf("%s: CMD_GETLEN for 0x%02x\n", (payload == data) ? "PASS" : "FAIL", payload);
+  }
+}
+
+int
+main() {
+  setup();
+  for(;;) {
+    // Send CMD_SETLED (0x00)
+    sleep_ms(DELAY_MS);
+    main_loop(SPINNER_WITH_BLANK, SPINNER_WITH_BLANK_count, DELAY_MS);
+  }
+}
+----
+
