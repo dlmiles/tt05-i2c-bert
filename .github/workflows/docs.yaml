@@ -66,16 +66,16 @@ jobs:
         #uses: TinyTapeout/tt-gds-action/docs-asciidoc@tt05
         uses: dlmiles/tt-gds-action/docs-asciidoc@tt05
 
-  artifact:
-    runs-on: ubuntu-latest
-    needs:		# it needs EITHER of these not both (trying if:)
-      - pandoc
-      - asciidoc
-    if: |
-      always() &&
-      !contains(needs.*.result, 'cancelled')
-    steps:
-      - name: Build asciidoc docs
-        #uses: TinyTapeout/tt-gds-action/docs-artifact@tt05
-        uses: dlmiles/tt-gds-action/docs-artifact@tt05
-    
+  #artifact:
+  #  runs-on: ubuntu-latest
+  #  needs:		# it needs EITHER of these not both (trying if:)
+  #    - pandoc
+  #    - asciidoc
+  #  if: |
+  #    always() &&
+  #    !contains(needs.*.result, 'cancelled')
+  #  steps:
+  #    - name: Build asciidoc docs
+  #      #uses: TinyTapeout/tt-gds-action/docs-artifact@tt05
+  #      uses: dlmiles/tt-gds-action/docs-artifact@tt05
+
