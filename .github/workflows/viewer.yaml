@@ -1,25 +1,18 @@
-name: publish
+name: viewer
 
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: [docs, gds, viewer, test, coverage, sta_reporter]
+    workflows: [gds]
     types:
       - completed
 
-permissions:
-  contents: read
-  packages: read
-  id-token: write
-  pages: write
-
 jobs:
-  on-success:
+  viewer:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
-      - name: publish
-        uses: dlmiles/tt-gds-action/publish@tt05
+      - uses: dlmiles/tt-gds-action/viewer@tt05
         with:
           # Need to explicitly pass as input.token into composite action
           token: ${{ secrets.GITHUB_TOKEN }}
