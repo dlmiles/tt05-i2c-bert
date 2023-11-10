@@ -36,7 +36,7 @@ ifdef::wavedrom-available[]
   {name: 'out3b',  wave: '0101010101.010101010.101010101.0101', node: ''},
 ],
 foot:{
-   text:'Clock Stretching from Strobe',
+   text:'Sample Wavedrom Ignore',
    tock:0
  },
 }

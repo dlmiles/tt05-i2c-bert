@@ -4,7 +4,7 @@
 
 
 
-# TT05 I2C (BERT) Bit Error Rate Tester / Echo ALU Peripheral
+# TT05 I2C Bit Error Rate Tester (BERT)<br/>Echo ALU Peripheral
 
 
 I2C TinyTapeout
@@ -20,7 +20,7 @@ GHA actions includes:
  * Verilator / Cocotb coverage testing and report
  * Online browser of VCD outputs (using Surfer viewer)
 
-(https://dlmiles.github.io/tt05-i2c-bert/asciidoc/)[Full Project Documentation and User Manual]
+[Full Project Documentation and User Manual](https://dlmiles.github.io/tt05-i2c-bert/asciidoc/)
 
 
 ## I2C Peripheral
@@ -29,8 +29,10 @@ GHA actions includes:
  * 8-bit ALU read with accumulator (repeat) on the end of I2C.
  * 8-bit RECV read with accumulator (ADD1) 
 
+
  * Send fixed size commands.
  * Received (generate) read response data.
+
 
  * Supports Open-Drain (default) and Push Pull line modes.
 
@@ -45,16 +47,20 @@ GHA actions includes:
    fast-mode I2C 400Kbps is possible at 1:25.  Ideally with more working on
    hardware design time 1:2 should be possible.
 
+
  * ACK generator
  * NACK generator
 
+
  * Read/Write ALU accumulator value
  * Write ALU accumulator compare (generates ACK/NACK for expected value)
+
 
  * Read data (fixed size command, 1 to 2^12 bytes)
  * Read data (unlimited length)
  * Write data (fixed size command, 1 to 2^12 bytes, processes each byte through ALU)
  * Write data (unlimited length)
+
 
  * Read/Write Configuration Mode (OD/PP mode, SCL mode, SCL less
  * Read/Write Timer Endstop (for clock/timeout generation)
@@ -63,31 +69,37 @@ GHA actions includes:
 
 ## Clock rate table
 
-This informaiton is based on testbench projections for the limits of the
+This information is based on testbench projections for the limits of the
 design.
 
-|  Master Clock  | I2C Bit Rate | Ratio | 1-stage | 2-stage | 3-stage | 5-stage |
-| -------------: | -----------: | --:-- | ---:--- | ---:--- | ---:--- | ---:--- |
-|        500 Khz |              |       |         |         |         |         |
-|          1 MHz |      ??? bps | ??:?? |   1:1   |         |         |         |
-|         10 MHz |      400 bps |  1:25 |   1:1   |   1:2   |   1:4   |         |
-|         25 MHz |              |       |         |         |         |         |
-|         50 MHz |              |       |   1:8   |         |         |         |
-|         66 Mhz |              |       |   1:8   |         |         |         |
+These are theoretical test-bench projections on performance.
 
-The design has passed STA and PNR for CLOCK_PERIOD=15 (66.66 MHz)
+| Master Clock | Ratio | Sampler | 1-stage      | 2-stage      | 3-stage      | 5-stage      |
+|--------------|-------|---------|--------------|--------------|--------------|--------------|
+| 500 Khz      | 25:1  | 1:1     | 20 Kbps      | 20 Kbps      | 20 Kbps      | 20 Kbps      |
+| 1 MHz        | 25:1  | 1:1     | 40 Kbps      | 40 Kbps      | 40 Kbps      | 40 Kbps      |
+| 10 MHz       | 25:1  | 1:1     | **400 Kbps** | **400 Kbps** | **400 Kbps** | **400 Kbps** |
+| "            | 25:1  | 1:2     | **400 Kbps** | **400 Kbps** | **400 Kbps** | **400 Kbps** |
+| "            | 25:1  | 1:4     | **400 Kbps** | **400 Kbps** | **400 Kbps** | **400 Kbps** |
+| "            | 25:1  | 1:8     | **400 Kbps** | **400 Kbps** | **400 Kbps** |              |
+| "            | 33:1  | 1:8     |              |              |              | 300 Kbps     |
+| 25 MHz       | 25:1  | 1:1     | 1 Mbps       | 1 Mbps       | 1 Mbps       | 1 Mbps       |
+| 50 MHz       | 25:1  | 1:1     | 2 Mbps       | 2 Mbps       | 2 Mbps       | 2 Mbps       |
+| 66 Mhz       | 25:1  | 1:1     | 2.64 Mbps    | 2.64 Mbps    | 2.64 Mbps    | 2.64 Mbps    |
 
-The noise immunity method trades clock to sample ratios (thus lowering
-maximum I2C bit rate) for improved noise immunity characterstics.
+The design has passed STA and PNR for CLOCK_PERIOD=15 ns (66.66 MHz)
 
-1-stage relates to modes: RegNext, DIRECT/RAW
-2-stage relates to modes: (not included in tt05, 2DFF-synchronizer, ANDNOR2-unanimous)
-3-stage relates to modes: MAJ3, 3DFF-synchronizer, ANDNOR3-unanimous
-5-stage relates to modes: MAJ5, 5DFF-synchronizer, ANDNOR5-unanimous
+The noise immunity method trades clock to sample ratio (thus lowering
+maximum I2C bit rate) for improved noise immunity characteristics.
+
+* 1-stage relates to modes: RegNext, DIRECT/RAW
+* 2-stage relates to modes: (not included in tt05, 2DFF-synchronizer, ANDNOR2-unanimous)
+* 3-stage relates to modes: MAJ3, 3DFF-synchronizer, ANDNOR3-unanimous
+* 5-stage relates to modes: MAJ5, 5DFF-synchronizer, ANDNOR5-unanimous
 
 ## Latching configuration bits on ENA rise and RST_N rise
 
-This is an experiment to confirm if it is possible to use SKY130 dlatch on
+This is an experiment to confirm if it is possible to use SKY130 DLATCH on
 the input lines to store configuration data during project selection and
 
 The RST_N rise should work as the timing can be completely managed by the TT
@@ -132,11 +144,10 @@ soon thereafter.
 * 8-bit ALU read with accumulator (repeat, ROL, INVERT, ADD1) on the end of I2C. 
   This did not make TT05 in the form I expected.
 
-* AsciiDoc outline of command and response system
+* A handful of the features on the list need to be tested that they have been delivered in the TT05 version.
 
-A few areas not covered yet in coverage report.
-
-https://dlmiles.github.io/tt05-i2c-bert/coverage/
+* A few areas not covered yet in coverage report.
+  https://dlmiles.github.io/tt05-i2c-bert/coverage/
 
 
 ![VCD Image](tt05-i2c-bert.png)

@@ -5,6 +5,82 @@ The TinyTapeout-05 edition supports a wide range of clock rates within the
 design limits of the PCB, RP2040 clock generator and the IC using the SKY130
 process technology.  It is expected this range is between 0 and 66MHz (with the
 known limitation of the gpiov2 cells used for chip IO having a 66MHz limit,
-while the RP2040 as a clock generator may strugle above 50Mhz).
+while the RP2040 as a clock generator may struggle above 50Mhz).
 
 
+
+== Clock rate table
+
+This information is based on testbench projections for the limits of the
+design.
+
+These are theoretical test-bench projections on performance.
+
+|===
+| Master Clock | Ratio | Sampler | 1-stage      | 2-stage      | 3-stage      | 5-stage      |
+| 500 Khz      | 25:1  | 1:1     | 20 Kbps      | 20 Kbps      | 20 Kbps      | 20 Kbps      |
+| 1 MHz        | 25:1  | 1:1     | 40 Kbps      | 40 Kbps      | 40 Kbps      | 40 Kbps      |
+| 10 MHz       | 25:1  | 1:1     | **400 Kbps** | **400 Kbps** | **400 Kbps** | **400 Kbps** |
+| "            | 25:1  | 1:2     | **400 Kbps** | **400 Kbps** | **400 Kbps** | **400 Kbps** |
+| "            | 25:1  | 1:4     | **400 Kbps** | **400 Kbps** | **400 Kbps** | **400 Kbps** |
+| "            | 25:1  | 1:8     | **400 Kbps** | **400 Kbps** | **400 Kbps** |              |
+| "            | 33:1  | 1:8     |              |              |              | 300 Kbps     |
+| 25 MHz       | 25:1  | 1:1     | 1 Mbps       | 1 Mbps       | 1 Mbps       | 1 Mbps       |
+| 50 MHz       | 25:1  | 1:1     | 2 Mbps       | 2 Mbps       | 2 Mbps       | 2 Mbps       |
+| 66 Mhz       | 25:1  | 1:1     | 2.64 Mbps    | 2.64 Mbps    | 2.64 Mbps    | 2.64 Mbps    |
+|===
+
+The design has passed STA and PNR for CLOCK_PERIOD=15 ns (66.66 MHz)
+
+The noise immunity method trades clock to sample ratio (thus lowering
+maximum I2C bit rate) for improved noise immunity characteristics.
+
+* 1-stage relates to modes: RegNext, DIRECT/RAW
+* 2-stage relates to modes: (not included in tt05, 2DFF-synchronizer, ANDNOR2-unanimous)
+* 3-stage relates to modes: MAJ3, 3DFF-synchronizer, ANDNOR3-unanimous
+* 5-stage relates to modes: MAJ5, 5DFF-synchronizer, ANDNOR5-unanimous
+
+== Latching configuration bits on ENA rise and RST_N rise
+
+"LATCH" feature
+
+This is an experiment to confirm if it is possible to use SKY130 DLATCH on
+the input lines to store configuration data during project selection and
+
+The RST_N rise should work as the timing can be completely managed by the TT
+project selection and startup and reset procedure.
+
+The ENA rise is more experimental and due to the quiescent nature of all the
+input lines before the ENA signal rise it maybe subject to timing relationship
+during project activation.  I have not looked into the specific detail TT
+multiplexor implementation in this area to know if this idea stands any chance
+of working.
+
+It assumes the rise of initial logic state all occur at the same time as the
+ENA rise, it is hopeful that due to the nature of latches the negative setup
+time will help with being able to observe and latch the input line state at
+that time.  The purpose is to allow 16 reconfigurable configurable bits
+to be held.
+
+Latches are used instead of flipflops to improve area efficient of this
+task.  As there are 16 input lines and two events to latch that is a
+total of 32 bit of available state.
+
+
+== SDA line status sense on power-on and reset
+
+"powerOnSense" feature
+
+This feature is designed to interpret the SDA line status at the time of
+power-on-reset and over a few clock cycles thereafter.  This is intended to
+provide and out-of-band mechanism to trigger a diagnostic mode startup.
+
+As per the nature of I2C a normal startup is indicated with sensing the
+expected high line state due to pull-up resistor being on the line. To the
+powerOnSense flag is raised when SDA line is low during power-on, or very
+soon thereafter.
+
+In the case of the original design exploration area, the purpose of this is
+for I2C-like protocol to be used for a CPU debug communications interface, then
+to reuse the data line to instruct the CPU to enter the debugger on power-on
+before the first instruction has been executed.

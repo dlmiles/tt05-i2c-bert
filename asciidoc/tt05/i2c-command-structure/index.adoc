@@ -1,19 +1,229 @@
 
-== TT05 I2C Command Structure
+== I2C Command Structure
 
 The I2C protocol uses the first byte from the controller initiated transfer to
 provide a target address.  Since the design goal is to test point-to-point
-(single controller and single pherpieral) context, the address byte is the
-devices command byte.  It in-effect consumes multiple I2C addresses on the
+(single controller and single peripheral) context, the address byte is the
+device's command byte.  The peripheral in-effect consumes multiple I2C addresses on the
 bus for itself.
 
 Command Mnemonic (the commands follow the I2C bit0 write(bit0=0) and
-read(bit1=1) state, where a write transaction broadly speaking has a
-side-effect.
+read(bit1=1) state, where a write transaction broadly speaking receives
+additional data from the controller, or has a major functional non-idempotent side effect
 
 
-CMD_RESET
-CMD_SETLED
+.Command Mnemonic List
+[cols="2,1,1,5"]
+|===
+| Mnemonic
+>| Value
+>| DataLen
+| Description
 
-CMD_GETLED
-GET_LATCH
+4+|I2C WRITE (bit0=0)
+
+| CMD_RESET
+>| 0xf0
+>| 0
+| Resets a number of internal registers.
+
+| CMD_SETCFG
+>| 0xc0
+>| 1
+| Write the main configuration state. +
+Not implemented at this time, so generated a NACK. +
+bit[2:0] contain SCL_MODE and +
+bit[3] contain PUSH_PULL_MODE.
+
+| CMD_SETLED
+>| 0xd0
+>| 1
+| Output payload byte on uo_out for TT PCB 7-segment display
+
+| CMD_SETDATA
+>| 0xf8
+>| 1
+| Set the ALU 8-bit accumulator to this value.
+
+| CMD_SETLEN
+>| 0xd0
+>| 1
+| Write the contents of REG_LEN.  The length 8-bit register.
+
+| CMD_SETENDS
+>| 0xe0
+>| 2
+| Write the contents of REG_ENDS. +
+The length 12-bit register, LSB first. +
+Unused bits should be sent cleared. +
+Initialized from DIV12 on power-up-reset.
+
+| CMD_ACK_wr
+>| 0x80
+>| 0
+| Generates an ACK response to the first byte send (the I2C address)
+
+| CMD_NACK_wr
+>| 0x84
+>| 0
+| Generates an NACK response to the first byte send (the I2C address)
+
+| CMD_ALUW_AND
+>| 0x02\|len4
+>| 0..N
+| ALU Write AND, Each byte of payload is successively ANDed with the current 8-bit accumulator value using the ALU and the result stored  back into the accumulator. +
+_See notes on ALU write operations._
+
+| CMD_ALUW_OR
+>| 0x06\|len4
+>| 0..N
+| ALU Write OR, Each byte of payload is successively ORed with the current 8-bit accumulator value using the ALU and the result stored  back into the accumulator. +
+_See notes on ALU write operations._
+
+| CMD_ALUW_XOR
+>| 0x0a\|len4
+>| 0..N
+| ALU Write XOR, Each byte of payload is successively XORed with the current 8-bit accumulator value using the ALU and the result stored  back into the accumulator. +
+_See notes on ALU write operations._
+
+| CMD_ALUW_ADD
+>| 0x0e\|len4
+>| 0..N
+| ALU Write ADD, Each byte of payload is successively added (addition) with the current 8-bit accumulator value using the ALU and the result stored back into the accumulator. +
+_See notes on ALU write operations._
+
+| CMD_RECV
+>| 0xfc
+>| 0
+| I2C peripheral repeatedly sends the current accumulator value over and over in the payload to the controller.
+
+
+4+| I2C READ (bit0=1)
+
+| CMD_GETLED
+>| 0xd1
+>| 1
+| Readback internal 8-bit register maintaining state of uo_out for TT PCB 7-segment display. +
+Note this register is not initialized over a power-on and RST_N reset, this is also an experiment to observe ASIC power on state for uninitialized registers.  This means random patterns maybe display on 7-seg on power-up. +
+A CMD_RESET will set this to zero.
+
+| CMD_GETLATCH
+>| 0xf1
+>| 4
+| Read the contents of the DLATCH states, from the ENA and RST_N rise event experiment. +
+Data is in the order of +
+RST_N.ui_in (first), +
+RST_N.uio_in, +
+ENA.ui_in, +
+RNA.uio_in (last).
+
+| CMD_GETCFG
+>| 0xc1
+>| 1
+| Read the main configuration state. +
+bit[2:0] contain SCL_MODE and +
+bit[3] contain PUSH_PULL_MODE.
+
+| CMD_GETLEN
+>| 0xd1
+>| 1
+| Read the contents of REG_LEN. +
+The length 8-bit register.
+
+| CMD_GETENDS
+>| 0xe1
+>| 2
+| Read the contents of `REG_ENDS`. +
+The length 12-bit register, LSB first. +
+Initialized from DIV12 on power-up-reset.
+
+| CMD_GETDATA
+>| 0xf9
+>| 1
+| Read the ALU 8-bit accumulator value.
+
+| CMD_ACK_rd
+>| 0x81
+>| 0
+| Generates an ACK response to the first byte send (the I2C address)
+
+| CMD_NACK_rd
+>| 0x85
+>| 0
+| Generates an NACK response to the first byte send (the I2C address)
+
+| CMD_ALUR_NOP
+>| 0x03\|len4
+>| 0..N
+| ALU Read No-Op, Each byte of payload is a repeat of the current 8-bit accumulator value. +
+_See notes on ALU read operations._
+
+| CMD_ALUR_ROL
+>| 0x07\|len4
+>| 0..N
+| ALU Read Rotate-Left, Each byte of payload is successively read and then rotated-left with the current 8-bit accumulator value using the ALU and the result (after rotate operation) is stored back into the accumulator. +
+_See notes on ALU read operations._ +
+_See notes on TT05 edition erratum._
+
+| CMD_ALUR_INV
+>| 0x0b\|len4
+>| 0..N
+| ALU Read Invert, Each byte of payload is successively read and then inverted with the current 8-bit accumulator value using the ALU and the result (after inversion) is stored back into the accumulator. +
+_See notes on ALU read operations._ +
+_See notes on TT05 edition erratum._
+
+| CMD_ALUR_ADD1
+>| 0x0f\|len4
+>| 0..N
+| ALU Read ADD1, Each byte of payload is successively added (addition) with the constant value of 1 (one) with the current 8-bit accumulator value using the ALU and the result (after addition operation) is stored back into the accumulator. +
+_See notes on ALU read operations._ +
+_See notes on TT05 edition erratum._
+
+
+| CMD_SEND
+>| 0xfd
+>| 0
+| I2C peripheral repeatedly expects to receive the current accumulator value over and over in the payload.
+
+
+|===
+
+
+The DataLen relates to the number of bytes sent or received.
+
+WRITE commands would have the controller sending the data.
+
+READ commands would have the peripheral sending the data.
+
+
+### ALU Write Operations
+
+The command byte is structured so that:
+
+* bit[7:4] is labelled the `len4` field
+* bit[3:2] is the ALU operation
+* bit[1] is always set (1)
+* bit[0] is always clear (0) as per I2C WRITE operation
+
+A `len12` field is computed from the `REG_LEN` 8-bit register providing the high 8-bits, and the `len4` field from the ALU command providing the lower 4-bits.
+
+
+### ALU Read Operations
+
+The command byte is structured so that:
+
+* bit[7:4] is labelled the `len4` field
+* bit[3:2] is the ALU operation
+* bit[1] is always set (1)
+* bit[0] is always set (1) as per I2C READ operation
+
+A `len12` field is computed from the `REG_LEN` 8-bit register providing the high 8-bits, and the `len4` field from the ALU command providing the lower 4-bits.
+
+
+### TT05 edition erratum
+
+The ALU read operations that made it into the TT05 edition were not as planned, due to an error, lack of time to get to testing and updating tech-bench.  So the initial implementation is the version.
+
+These operations do not mutate the accumulator value during each byte of the read operation payload.
+
+

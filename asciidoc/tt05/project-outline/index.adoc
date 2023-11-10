@@ -14,3 +14,51 @@ The project does not make provision for achieving better than 1:3 global
 clock to I2C clock (SCL) clocking ratios, such as needed for very high-speed
 I2C that maybe trying to work nearer the maximum limits of the technology.
 
+
+The project has been implemented with 2 finite state machines, a low level per-byte I2C one and a higher level command and response orientated one.
+
+
+    [FIXME outline block level functional diagram]
+
+
+== Filter Modes
+
+Noise immunity is a requirement in some circumstances, so in an attempt to provide experimentation in this area a number of modes have been added to the design to allow methods to be tried out.
+
+The more sample bits used with the filter the lower the maximum I2C SCL rate can operate at, but the higher expectation of noise immunity.
+
+* RegNext, just means there is a single register (no synchroniser pattern) between the raw IO signal and the hardware design SCL and SDA data.
+
+* xDFF-synchroniser, means the raw IO signal passes through a series of D FLip-Flops in a design pattern called a synchroniser.  At this time these are standard DFF cells with automatic PNR layout.  In an ideal device maybe you'd try to make use of special purpose DFFs that have improved properties for improving meta-stability concerns and back-to-back layout location.  The integer number at the front of mnemonic (e.g. 3DFF-synchroniser) how many DFF are in series.  The sample point is taken from the Q pin of the last one.
+
+* MAJx, means a majority-voter logic circuit is used, that takes inputs from the tap points off a DFF-synchroniser.  This is always an odd number of inputs, so the output is always certain.  We make use of the specific MAJ3 sky130 cell that provides this function, just because we can, to give that cell a run.
+
+* ANDNORx-unanimous, means the tap points off a DFF-synchroniser are fed into an AND and also separately info a NOR logic elements with the same number of inputs as the number of taps.  This requires all DFF to agree unanimously on the state of the signal before a rise or fall transition at the sample point occurs.  This mechanism acts like a schmitt trigger for the incoming data.
+
+* DIRECT/RAW, means there is no register at all and sampling it done with the raw IO signal.
+
+    [FIXME diagrams for each mode]
+
+
+== Sample Ratio
+
+The sample ratio related to the number of global CLK cycles per sampler cycle.  The sampler cycle relates to the line state being sampled by the filter or I2C protocol engine (when no filter is used, RegNext or Direct modes).
+
+The sample ratios that exist are 1:1, 1:2, 1:4, 1:8.  1:1 will provide the ratio allowing for the more I2C bandwidth, while 1:8 can severely limit the I2C bandwidth available.
+
+This feature exists to test another dynamic concerning noise immunity.
+
+    [FIXME functional block diagrams showing order of input to engine, via sample-radio, via filter]
+
+
+== Improvements for next iteration
+
+Investigate official Bit Error Rate Testing methods and patterns relevant to I2C and/or serial communications of a simular speed.
+
+Test and iterate design with 2:1 clock to sample rates.  Might need a configuration option to modify at least on known sticking point (to trade higher level FSM simplicity for speed).
+
+Validate it with an independent I2C controller.
+
+Validate it with I2C signal stuttering, the testbench include near perfect I2C SCL use.
+
+Investigate I2C STOP condition SCL fall insertion.  The test-benches currently insert half-bit of SCL fall, before SCL rise, before SDA rise.  The SCL fall maybe optional, so test with and without.
